@@ -1,5 +1,7 @@
 {
-    "version":  "1.0.1",
-    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.0.1/SteamLite-Mobile-1.0.1.apk",
-    "notes":  "Instant notifications with reply from the notification, game pages, line icons instead of emojis, home-screen widget, share to SteamLite, library filters and stats, smoother and bouncier animations, and no more flicker on refresh."
+    "version":  "1.1.0",
+    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.1.0/SteamLite-Mobile-1.1.0.apk",
+    "sha256":  "8e5dc442882b8137647f1561f76cb6e06d61e8d59a2b21435bc9a6d38946f7bb",
+    "size":  2920960,
+    "notes":  "In-app updates (no more downloading from the browser), official themes, group management, news and polls, sale alerts, Play on my PC, favourites synced from your PC, and a Notification check on the Me tab. Note: from this version on the app updates itself. If you have 1.0.1 or older, download this file once from GitHub and install it over the old one."
 }
