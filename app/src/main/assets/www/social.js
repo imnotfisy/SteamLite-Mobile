@@ -155,12 +155,14 @@ function openGame(id, hint) {
   $('#gpback').onclick = closeGame;
   $('#gpshare').onclick = function () { pickConv('Send ' + title + ' to...', function (cid) { sendGameTo(cid, g || { appid: id, name: title, playtime_forever: 0 }); }); };
   var paint = function (d, ach) {
+    var pcOn = GP.pc === true, pcFav = pcFavs().indexOf(id) >= 0;
     if (!GP.open || GP.id !== id) return; var b = $('#gpbody'); if (!b) return; var name = (d && d.name) || title, fav = FAVS().indexOf(id) >= 0;
     var pl = S.ov ? S.ov.friends.filter(function (f) { return f.playing && +f.playing.appid === id; }) : [];
     var h = '<h2 class="gpt">' + esc(name) + '</h2>';
-    h += '<div class="chips" style="margin-bottom:8px">' + (d && d.genres ? d.genres.slice(0, 4).map(function (x) { return '<span class="chip">' + esc(x) + '</span>'; }).join('') : '') + (g ? '<span class="chip owned">In your library</span>' : '<span class="chip">Not in your library</span>') + '</div>';
+    h += '<div class="chips" style="margin-bottom:8px">' + (d && d.genres ? d.genres.slice(0, 4).map(function (x) { return '<span class="chip">' + esc(x) + '</span>'; }).join('') : '') + (g ? '<span class="chip owned">In your library</span>' : '<span class="chip">Not in your library</span>') + (pcFav ? '<span class="chip gold">Favourite on PC</span>' : '') + '</div>';
     if (d) h += '<div class="gprice">' + (d.free ? 'Free to play' : d.price ? (d.off ? '<span class="off">-' + d.off + '%</span> ' : '') + esc(d.price) : '') + (d.meta ? ' <span class="chip">Metacritic ' + d.meta + '</span>' : '') + '</div>';
     if (g) h += '<div class="grid g3"><div class="card"><b>' + Math.round(g.playtime_forever / 60) + ' h</b><div class="sub">Played</div></div><div class="card"><b>' + (Math.round(g.playtime_2weeks / 6) / 10) + ' h</b><div class="sub">Last 2 weeks</div></div><div class="card"><b>' + (ach ? ach.filter(function (x) { return x.achieved; }).length + '/' + ach.length : '-') + '</b><div class="sub">Achievements</div></div></div>';
+    if (g) h += '<button class="btn wide' + (pcOn ? '' : ' ghost') + '" id="gppc" style="margin-bottom:8px">' + ic('gamepad', 17) + ' Play on my PC</button>' + (pcOn ? '' : '<div class="sub wrap" style="margin:-2px 0 8px">' + (GP.pc === false ? 'Your PC is not connected. Open SteamLite on it and turn on "Let my phone launch games" in Settings, Privacy.' : 'Checking your PC...') + '</div>');
     h += '<div class="gpacts"><button class="btn" data-buy="' + id + '">' + ic('external', 16) + (g ? ' Open in Steam' : ' View in store') + '</button><button class="btn ghost" id="gpfav">' + ic('star', 16, fav) + (fav ? ' Favourite' : ' Favourite') + '</button></div>';
     if (pl.length) h += '<div class="sec">Playing it now</div>' + pl.map(function (f) { return '<div class="row"><div class="av sm"' + avStyle(f.avatar) + '></div><div class="grow name">' + nameHtml(f) + '</div></div>'; }).join('');
     if (d && d.desc) h += '<div class="sec">About</div><p class="gpd">' + esc(strip(d.desc)) + '</p>';
@@ -172,11 +174,13 @@ function openGame(id, hint) {
     if (d && (d.dev || d.pub || d.date)) h += '<div class="sec">Details</div><div class="card kv">' + (d.dev ? '<div><span>Developer</span><b>' + esc(d.dev.join(', ')) + '</b></div>' : '') + (d.pub ? '<div><span>Publisher</span><b>' + esc(d.pub.join(', ')) + '</b></div>' : '') + (d.date ? '<div><span>Release</span><b>' + esc(d.date) + '</b></div>' : '') + '</div>';
     if (!d) h += '<div class="empty">The store page is not available right now.</div>';
     b.innerHTML = h;
+    var pb = $('#gppc'); if (pb) pb.onclick = function () { if (!pcOn) return toast(GP.pc === false ? 'Your PC is not connected to SteamLite.' : 'Still checking your PC...'); api('POST', '/pc/launch', { appid: id, name: name }).then(function (r) { if (r.error) return toast(r.error); hp('ok'); toast('Sent! It starts on your PC within about 30 seconds.'); }); };
     var fb = $('#gpfav'); if (fb) fb.onclick = function () { var f = FAVS(), i = f.indexOf(id); if (i >= 0) f.splice(i, 1); else f.push(id); ls.set('favs', JSON.stringify(f)); hp('tap'); paint(d, ach); };
     if ($('#gpname') && d && d.name) $('#gpname').textContent = d.name;
   };
+  GP.pc = undefined; if (g) api('GET', '/pc/status').then(function (r) { GP.pc = !!(r && r.online); if (GP.open && GP.id === id) paint(GP.d, GP.a); });
   var cached = cget('gd:' + id); if (cached) paint(cached.d, null);
-  Promise.all([gameDetails(id), g ? gameAch(id) : Promise.resolve(null)]).then(function (a) { paint(a[0], a[1]); });
+  Promise.all([gameDetails(id), g ? gameAch(id) : Promise.resolve(null)]).then(function (a) { GP.d = a[0]; GP.a = a[1]; paint(a[0], a[1]); });
 }
 function closeGame() { GP.open = false; var el = $('#gpage'); el.classList.remove('open'); if (LIB && S.tab === 'lib' && LIB.tab === 'games') paintGames(); }
 
@@ -223,14 +227,27 @@ function libGames() {
     else if (!S.games) { var el = $('#gl'); if (el) el.innerHTML = '<div class="empty">' + (S.key === '' ? 'Your Steam API key is not saved yet.<br>Open SteamLite on your PC and finish the one-time key step, then come back.' : 'Steam did not return your games.<br>Your profile\'s "Game details" must be set to Public.') + '</div>'; }
   });
 }
-var FILTERS = [['all', 'All'], ['recent', 'Recent'], ['unplayed', 'Unplayed'], ['fav', 'Favourites'], ['long', '10 h or more']];
+var FILTERS0 = [['all', 'All'], ['recent', 'Recent'], ['unplayed', 'Unplayed'], ['fav', 'Favourites'], ['long', '10 h or more']];
+function loadBackup(force) {
+  var c = cget('bk'); if (c) S.bk = c;
+  if (!force && c && Date.now() - c.at < 6 * 3600000) return;
+  api('GET', '/backup').then(function (r) {
+    var d = r && r.backup && r.backup.data; if (!d) return;
+    var cols = {}; if (d.collections && typeof d.collections === 'object') Object.keys(d.collections).slice(0, 12).forEach(function (k) { if (Array.isArray(d.collections[k]) && d.collections[k].length) cols[k] = d.collections[k].map(Number).filter(Boolean); });
+    S.bk = { at: Date.now(), fav: (Array.isArray(d.favorites) ? d.favorites : []).map(Number).filter(Boolean), cols: cols }; cset('bk', S.bk);
+    if (S.tab === 'lib' && LIB.tab === 'games' && $('#gg')) paintGames();
+  });
+}
+var pcFavs = function () { return (S.bk && S.bk.fav) || []; };
+var allFavs = function () { var f = FAVS().slice(); pcFavs().forEach(function (x) { if (f.indexOf(x) < 0) f.push(x); }); return f; };
+function filterList() { var l = FILTERS0.slice(); if (S.bk && S.bk.cols) Object.keys(S.bk.cols).forEach(function (k) { l.push(['col:' + k, k]); }); return l; }
 function paintGames() {
-  var el = $('#gg'); if (!el || !S.games) return; var q = ($('#gq') ? $('#gq').value : '').toLowerCase(), fav = FAVS();
-  var chips = function (list, cur, attr) { return list.map(function (x) { return '<button class="btn sm ' + (cur === x[0] ? '' : 'ghost') + '" ' + attr + '="' + x[0] + '">' + x[1] + '</button>'; }).join(''); };
+  var el = $('#gg'); if (!el || !S.games) return; var q = ($('#gq') ? $('#gq').value : '').toLowerCase(), fav = allFavs();
+  var FILTERS = filterList(); var chips = function (list, cur, attr) { return list.map(function (x) { return '<button class="btn sm ' + (cur === x[0] ? '' : 'ghost') + '" ' + attr + '="' + x[0] + '">' + x[1] + '</button>'; }).join(''); };
   var fe = $('#gfil'), se = $('#gsort'); if (fe) setHtml(fe, chips(FILTERS, LIB.filter, 'data-f')); if (se) setHtml(se, chips([['hours', 'Most played'], ['recent', 'Last played'], ['name', 'A to Z']], LIB.sort, 'data-s'));
   var list = S.games.filter(function (g) {
     if (q && (g.name || '').toLowerCase().indexOf(q) < 0) return false;
-    if (LIB.filter === 'unplayed') return g.playtime_forever === 0; if (LIB.filter === 'recent') return g.playtime_2weeks > 0; if (LIB.filter === 'fav') return fav.indexOf(g.appid) >= 0; if (LIB.filter === 'long') return g.playtime_forever >= 600; return true;
+    if (LIB.filter.indexOf('col:') === 0) return ((S.bk && S.bk.cols[LIB.filter.slice(4)]) || []).indexOf(g.appid) >= 0; if (LIB.filter === 'unplayed') return g.playtime_forever === 0; if (LIB.filter === 'recent') return g.playtime_2weeks > 0; if (LIB.filter === 'fav') return fav.indexOf(g.appid) >= 0; if (LIB.filter === 'long') return g.playtime_forever >= 600; return true;
   });
   list.sort(LIB.sort === 'name' ? function (a, b) { return (a.name || '').localeCompare(b.name || ''); } : LIB.sort === 'recent' ? function (a, b) { return (b.last || 0) - (a.last || 0); } : function (a, b) { return b.playtime_forever - a.playtime_forever; });
   var tot = Math.round(S.games.reduce(function (s, g) { return s + g.playtime_forever; }, 0) / 60), ce = $('#gcount'); if (ce) ce.textContent = list.length + ' of ' + S.games.length + ' games · ' + tot.toLocaleString() + ' hours in total';
@@ -242,7 +259,7 @@ function fetchWish() {
       var j = {}; try { j = JSON.parse(r.text); } catch (e) { } var it = (j.response && j.response.items) || []; if (!it.length) { S.wish = []; cset('wish', []); return []; }
       it.sort(function (a, b) { return (a.priority || 999) - (b.priority || 999); }); var ids = it.map(function (x) { return x.appid; }).slice(0, 150), names = {}, p = Promise.resolve();
       for (var i = 0; i < ids.length; i += 50) (function (chunk) { p = p.then(function () { var inp = JSON.stringify({ ids: chunk.map(function (a) { return { appid: a }; }), context: { language: 'english', country_code: 'US' }, data_request: {} }); return raw('GET', 'https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json=' + encodeURIComponent(inp), {}).then(function (rr) { var jj = {}; try { jj = JSON.parse(rr.text); } catch (e) { } ((jj.response && jj.response.store_items) || []).forEach(function (s) { if (s.appid) names[s.appid] = s.name; }); }); }); })(ids.slice(i, i + 50));
-      return p.then(function () { S.wish = ids.map(function (a) { return { appid: a, name: names[a] || ('App ' + a) }; }); cset('wish', S.wish); return S.wish; });
+      return p.then(function () { S.wish = ids.map(function (a) { return { appid: a, name: names[a] || ('App ' + a) }; }); cset('wish', S.wish); syncSales(); return S.wish; });
     });
   });
 }
@@ -265,6 +282,12 @@ function shareWishlist(w) {
     });
   });
 }
+// sale alerts: the phone sends your wishlist to SteamLite Online, which checks prices and sends a notification when something goes on sale
+function syncSales(force) {
+  if (ls.get('saleAlerts') !== '1') return; if (!force && Date.now() - +(ls.get('wlAt') || 0) < 6 * 3600000) return;
+  var go2 = function (w) { if (!w || !w.length) return; ls.set('wlAt', String(Date.now())); api('POST', '/me/wishlist', { items: w.slice(0, 150) }); };
+  if (S.wish) go2(S.wish); else fetchWish().then(go2);
+}
 function libStats() {
   var draw = function (g) {
     var gl = $('#gl'); if (!gl || LIB.tab !== 'stats') return;
@@ -284,15 +307,27 @@ function libStats() {
 function renderThemes(refresh) {
   var v = $('#view');
   if (!refresh) {
-    v.__h = null; v.innerHTML = '<div class="hdr"><h1>Themes</h1><button class="btn sm" id="tmk">' + ic('plus', 15) + ' Create</button><button class="btn sm ghost" id="trs">Reset</button></div><div class="seg" id="tseg">' + [['top', 'Top'], ['new', 'New'], ['downloads', 'Most used'], ['mine', 'Mine']].map(function (x) { return '<button data-s="' + x[0] + '" class="' + (S.tsort === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</div><div class="pad" id="tl">' + skel(4, true) + '</div>';
+    v.__h = null; v.innerHTML = '<div class="hdr"><h1>Themes</h1><button class="btn sm" id="tmk">' + ic('plus', 15) + ' Create</button><button class="btn sm ghost" id="trs">Reset</button></div><div class="seg" id="tseg">' + [['official', 'Official'], ['top', 'Community'], ['new', 'New'], ['downloads', 'Most used'], ['mine', 'Mine']].map(function (x) { return '<button data-s="' + x[0] + '" class="' + (S.tsort === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</div><div class="pad" id="tl">' + skel(4, true) + '</div>';
     $('#trs').onclick = function () { Look.setTheme(null); toast('Back to the default look'); };
     $('#tmk').onclick = themeMaker;
-    $('#tseg').onclick = function (e) { var b = e.target.closest('button'); if (b) { S.tsort = b.dataset.s; renderThemes(); } };
+    $('#tseg').onclick = function (e) { var b = e.target.closest('button'); if (b) { S.tsort = b.dataset.s; S.tsortSet = true; ls.set('tsort', S.tsort); hp('tap'); renderThemes(); } };
   }
+  if (S.tsort === 'top' && !S.tsortSet) S.tsort = ls.get('tsort') || 'official';
+  if (S.tsort === 'official') { paintOfficial(); return; }
   var sort = S.tsort === 'mine' ? 'new' : S.tsort, ck = 'themes:' + sort;
   var show = function (r) { S.themeData = r; paintThemes(); };
   var c = refresh ? null : cget(ck); if (c) show(c);
   api('GET', '/themes?sort=' + sort).then(function (r) { if (r.themes) { cset(ck, r); show(r); } else if (!c && !S.themeData) { var el = $('#tl'); if (el) el.innerHTML = '<div class="empty">' + esc(r.error || 'Could not load themes') + '</div>'; } });
+}
+function paintOfficial() {
+  var el = $('#tl'); if (!el) return; var q = (S.oq || '').toLowerCase(), cur = Look.theme && Look.theme.id;
+  var list = OFFICIAL.filter(function (t) { return !q || t.name.toLowerCase().indexOf(q) >= 0 || (t.desc || '').toLowerCase().indexOf(q) >= 0; });
+  var html = '<input class="in" id="oq" placeholder="Search the ' + OFFICIAL.length + ' official themes" value="' + esc(S.oq || '') + '" style="margin-bottom:10px"><div class="sub" style="margin-bottom:8px">All unlocked on your phone.</div>' + (list.length ? list.map(function (t) {
+    return '<div class="card" data-ap="o' + t.id + '"><div class="swatch">' + t.colors.map(function (c) { return '<i style="background:' + esc(c) + '"></i>'; }).join('') + '</div><div class="name">' + esc(t.name) + '</div><div class="sub wrap">' + esc(t.desc) + '</div><div style="margin-top:10px"><button class="btn sm' + (cur === t.id ? ' ghost' : '') + '" data-oa="' + t.id + '">' + (cur === t.id ? 'Applied' : 'Apply') + '</button></div></div>';
+  }).join('') : '<div class="empty">No official theme matches.</div>');
+  if (!$('#oq')) el.innerHTML = html; else { var keep = $('#oq'); var rest = html.slice(html.indexOf('<div class="sub"')); var wrap = document.createElement('div'); wrap.innerHTML = rest; while (keep.nextSibling) keep.parentNode.removeChild(keep.nextSibling); while (wrap.firstChild) keep.parentNode.appendChild(wrap.firstChild); }
+  var inp = $('#oq'); inp.oninput = function () { S.oq = inp.value; paintOfficial(); inp.focus(); };
+  el.onclick = function (e) { var a = e.target.closest('[data-oa]'); if (!a) return; var t = OFFICIAL.filter(function (x) { return x.id === a.dataset.oa; })[0]; Look.setTheme({ id: t.id, vars: t.vars }); hp('ok'); toast('Applied ' + t.name); paintOfficial(); };
 }
 function paintThemes() {
   var el = $('#tl'); if (!el || !S.themeData) return; var mine = S.tsort === 'mine', list = mine ? (S.themeData.mine || []) : (S.themeData.themes || []), cur = Look.theme && Look.theme.id;
@@ -334,6 +369,60 @@ function themeMaker() {
   draw();
 }
 
+// ---------- news and polls (announcements and votes from SteamLite Online) ----------
+function loadNews() {
+  if (!S.tok) return;
+  Promise.all([api('GET', '/status'), api('GET', '/polls')]).then(function (a) { S.news = { status: a[0] || {}, polls: (a[1] && a[1].polls) || [], at: Date.now() }; var b = $('#newsb'); if (b) { var dot = b.querySelector('.ndot'); if (newsUnseen() && !dot) b.insertAdjacentHTML('beforeend', '<i class="ndot"></i>'); else if (!newsUnseen() && dot) dot.remove(); } });
+}
+function seenAnn() { try { return JSON.parse(ls.get('seenAnn') || '[]'); } catch (e) { return []; } }
+function newsUnseen() { var n = S.news; if (!n) return false; var seen = seenAnn(); return ((n.status.announcements || []).some(function (x) { return seen.indexOf(x.id) < 0; })) || n.polls.some(function (p) { return p.mine == null; }); }
+function openNews() {
+  var n = S.news || { status: {}, polls: [] }, st = n.status || {}, anns = st.announcements || [];
+  var h = '<h3 style="margin:0 0 8px">News and polls</h3>';
+  if (st.motd) h += '<div class="card" style="background:color-mix(in srgb,var(--acc) 22%,var(--card))">' + esc(st.motd) + '</div>';
+  if (anns.length) h += '<div class="sec">Announcements</div>' + anns.map(function (a) { return '<div class="card"><div class="name">' + esc(a.title) + '</div><div class="sub wrap">' + esc(a.date || '') + '</div><div style="margin-top:6px">' + esc(a.text) + '</div>' + (a.url ? '<button class="btn sm ghost" style="margin-top:8px" data-url="' + esc(a.url) + '">' + ic('external', 14) + ' Read more</button>' : '') + '</div>'; }).join('');
+  if (n.polls.length) h += '<div class="sec">Polls</div>' + n.polls.map(function (p) {
+    var tot = p.total || 0; return '<div class="card"><div class="name">' + esc(p.title) + '</div>' + p.items.map(function (i) { var pct = tot ? Math.round(i.votes / tot * 100) : 0, mine = p.mine === i.id; return '<button class="poll' + (mine ? ' mine' : '') + '" data-pv="' + esc(p.id) + '|' + esc(i.id) + '"><span class="pf" style="width:' + pct + '%"></span><span class="pt">' + (mine ? ic('check', 15) + ' ' : '') + esc(i.title) + '</span><span class="pp">' + pct + '%</span></button>'; }).join('') + '<div class="sub" style="margin-top:6px">' + tot + ' vote' + (tot === 1 ? '' : 's') + (p.mine ? ' · tap another option to change your vote' : '') + '</div></div>';
+  }).join('');
+  if (!anns.length && !n.polls.length && !st.motd) h += '<div class="empty">Nothing new right now.</div>';
+  sheet(h);
+  ls.set('seenAnn', JSON.stringify(anns.map(function (a) { return a.id; }))); var b = $('#newsb .ndot'); if (b && !n.polls.some(function (p) { return p.mine == null; })) b.remove();
+  $('#sheet').onclick = function (e) {
+    var v = e.target.closest('[data-pv]'); if (!v) return; var parts = v.dataset.pv.split('|'); hp('ok');
+    api('POST', '/vote', { pollId: parts[0], optionId: parts[1] }).then(function (r) { if (r.error) return toast(r.error); toast('Vote saved'); api('GET', '/polls').then(function (pp) { S.news.polls = (pp && pp.polls) || []; openNews(); }); });
+  };
+}
+
+// ---------- notification check: shows what is working and what is not, and can send a test ----------
+function agoLong(t) { var s = Math.round((Date.now() - t) / 1000); return s < 60 ? s + ' seconds ago' : s < 3600 ? Math.round(s / 60) + ' minutes ago' : s < 86400 ? Math.round(s / 3600) + ' hours ago' : Math.round(s / 86400) + ' days ago'; }
+function paintNotifCheck(result) {
+  var el = $('#ncheck'); if (!el) return; var s = notifState(), perm = s.permission !== false && s.enabled !== false, row = function (label, good, text) { return '<div><span>' + label + '</span><b class="' + (good ? 'ok-t' : 'bad-t') + '">' + text + '</b></div>'; };
+  var h = '<div class="name" style="margin-bottom:6px">' + ic('bell', 17) + ' Notification check</div><div class="diag">' +
+    row('Android allows notifications', perm && s.channel !== false, perm ? (s.channel === false ? 'Blocked for messages' : 'Yes') : 'No') +
+    row('Google Play services', s.play !== false, s.play === false ? 'Missing' : 'Yes') +
+    row('Instant push connected', !!s.push, s.push ? 'Yes' : 'Not yet') +
+    row('Last push received', !!s.lastPushAt, s.lastPushAt ? agoLong(s.lastPushAt) : 'Never') +
+    row('Last notification shown', !!s.lastShownAt, s.lastShownAt ? agoLong(s.lastShownAt) : 'Never') + '</div>' +
+    (s.lastPushErr ? '<div class="sub wrap" style="margin-top:6px;color:var(--bad)">' + esc(s.lastPushErr) + '</div>' : '') +
+    (s.push && !s.lastPushAt && s.batteryOpt ? '<div class="sub wrap" style="margin-top:6px">Your phone may be putting SteamLite to sleep' + (s.maker ? ' (' + esc(s.maker) + ')' : '') + '. Open the app settings, then Battery, and choose Unrestricted. Do not swipe SteamLite away from recent apps if your phone force-stops it.</div>' : '') +
+    (s.error ? '<div class="sub wrap" style="margin-top:6px;color:var(--bad)">' + esc(s.error) + '</div>' : '') +
+    (result ? '<div class="sub wrap" style="margin-top:6px">' + esc(result) + '</div>' : '') +
+    '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">' + (perm && s.channel !== false ? '' : '<button class="btn sm" id="nfix">Fix in Android settings</button>') + '<button class="btn sm ghost" id="ntest">' + ic('send', 14) + ' Send a test notification</button>' + (s.push ? '' : '<button class="btn sm ghost" id="nretry">Reconnect</button>') + '<button class="btn sm ghost" id="nbat">App settings and battery</button></div>';
+  el.innerHTML = h;
+  var fx = $('#nfix'); if (fx) fx.onclick = function () { CB.notif = function () { setTimeout(function () { paintNotifCheck(); checkNotifBanner(); }, 800); }; N('askNotif'); };
+  var nb = $('#nbat'); if (nb) nb.onclick = function () { N('openAppSettings'); };
+  var rt = $('#nretry'); if (rt) rt.onclick = function () { N('repush'); toast('Trying to connect...'); setTimeout(function () { paintNotifCheck(); }, 4000); };
+  $('#ntest').onclick = function () {
+    if (!perm) { toast('Allow notifications first.'); return; } $('#ntest').disabled = true;
+    api('POST', '/push/test').then(function (r) {
+      var msg;
+      if (r.error) msg = r.error; else if (!r.ok) msg = 'The server could not send a test.'; else if (!r.devices) msg = 'SteamLite Online does not know this phone yet. Tap Reconnect, wait a few seconds and try again.';
+      else { var good = r.results.filter(function (x) { return x.status === 200; }).length; msg = good ? 'Sent to ' + good + ' phone' + (good === 1 ? '' : 's') + '. A notification should appear in a second or two. If it does not, check Do Not Disturb and battery saver.' : 'Google did not accept it (' + r.results.map(function (x) { return x.status || x.error; }).join(', ') + '). Tap Reconnect and try again.'; }
+      paintNotifCheck(msg);
+    });
+  };
+}
+
 // ---------- me ----------
 function sw(id, on) { return '<label class="sw"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '><i></i></label>'; }
 function renderMe() {
@@ -343,17 +432,19 @@ function renderMe() {
     '<div class="card"><div class="sub">Your SteamLite code</div><div style="display:flex;align-items:center;gap:10px"><b style="font-size:1.3em;letter-spacing:.04em" class="grow">' + esc(m.code) + '</b><button class="btn sm ghost" id="cpc">' + ic('copy', 15) + ' Copy</button></div><div class="sub wrap">Friends type this to add you.</div></div>' +
     '<div class="card"><div class="sub" style="margin-bottom:6px">Bio</div><textarea class="in" id="bio" rows="2" maxlength="160" placeholder="Say something about yourself"></textarea><button class="btn sm" style="margin-top:8px" id="bios">Save bio</button></div>' +
     '<div class="sec">Look</div><div class="card"><div class="sub">Mode</div><div class="seg" style="margin:6px 0 12px" id="smode">' + [['auto', 'Auto'], ['dark', 'Dark'], ['light', 'Light']].map(function (x) { return '<button data-m="' + x[0] + '" class="' + (Look.mode === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</div><div class="sub">Text size</div><div class="seg" style="margin:6px 0 0" id="ssize">' + [[0.9, 'Small'], [1, 'Normal'], [1.12, 'Large'], [1.25, 'Huge']].map(function (x) { return '<button data-z="' + x[0] + '" class="' + (Look.size === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</div></div>' +
-    '<div class="sec">Notifications and privacy</div><div class="card"><div class="opt"><div class="grow"><b>Message notifications</b><div class="sub wrap">' + (push ? 'Instant. You get a notification the moment a message, friend request or reminder arrives, and you can reply from it.' : 'Waiting for instant notifications to connect. Until then, new messages show up within about 15 minutes.') + '</div></div>' + sw('tnot', ls.get('muteAll') !== '1') + '</div><div class="opt"><div class="grow"><b>Show what I am playing</b><div class="sub wrap">Friends see your online status and game.</div></div>' + sw('tplay', ls.get('sharePlay') !== '0') + '</div>' + (canLock ? '<div class="opt"><div class="grow"><b>App lock</b><div class="sub wrap">Ask for your phone\'s fingerprint, face or PIN when you come back.</div></div>' + sw('tlock', ls.get('lock') === '1') + '</div>' : '') + '</div>' +
-    '<div class="card"><div class="opt" style="padding:0"><span class="ai">' + ic('info', 20) + '</span><div class="grow"><b>Home-screen widget</b><div class="sub wrap">Press and hold your home screen, tap Widgets, then pick SteamLite to see your unread messages.</div></div></div></div>' +
+    '<div class="sec">Notifications and privacy</div><div class="card" id="ncheck"></div><div class="card"><div class="opt"><div class="grow"><b>Message notifications</b><div class="sub wrap">' + (push ? 'Instant. You get a notification the moment a message, friend request or reminder arrives, and you can reply from it.' : 'Waiting for instant notifications to connect. Until then, new messages show up within about 15 minutes.') + '</div></div>' + sw('tnot', ls.get('muteAll') !== '1') + '</div><div class="opt"><div class="grow"><b>Show what I am playing</b><div class="sub wrap">Friends see your online status and game.</div></div>' + sw('tplay', ls.get('sharePlay') !== '0') + '</div>' + '<div class="opt"><div class="grow"><b>Sale alerts</b><div class="sub wrap">Get a notification when a game on your wishlist goes on sale (20% off or more). Your wishlist is sent to SteamLite Online for this.</div></div>' + sw('tsale', ls.get('saleAlerts') === '1') + '</div>' + (canLock ? '<div class="opt"><div class="grow"><b>App lock</b><div class="sub wrap">Ask for your phone\'s fingerprint, face or PIN when you come back.</div></div>' + sw('tlock', ls.get('lock') === '1') + '</div>' : '') + '</div>' +
+    (S.bk ? '<div class="card"><div class="sub wrap">Synced from your PC: ' + pcFavs().length + ' favourite game' + (pcFavs().length === 1 ? '' : 's') + ' and ' + Object.keys(S.bk.cols || {}).length + ' collection' + (Object.keys(S.bk.cols || {}).length === 1 ? '' : 's') + '. They show as filters in your Library.</div></div>' : '') + '<div class="card"><div class="opt" style="padding:0"><span class="ai">' + ic('info', 20) + '</span><div class="grow"><b>Home-screen widget</b><div class="sub wrap">Press and hold your home screen, tap Widgets, then pick SteamLite to see your unread messages.</div></div></div></div>' +
     '<button class="btn ghost wide" style="margin-bottom:10px" id="myp">' + ic('user', 17) + ' View my profile</button><button class="btn ghost wide" style="margin-bottom:10px" id="cku">' + ic('download', 17) + ' Check for updates</button><button class="btn bad wide" style="margin-bottom:10px" id="so">Sign out</button><button class="btn ghost wide" style="color:var(--bad)" id="del">Delete my SteamLite account</button><div class="sub" style="text-align:center;margin-top:14px">SteamLite Mobile ' + esc(CUR) + '</div></div>';
   api('GET', '/social/profile?uid=' + (S.me.uid || '')).then(function (p) { if ($('#bio') && p.bio && !$('#bio').value) $('#bio').value = p.bio; });
+  paintNotifCheck();
   $('#cpc').onclick = function () { N('copy', m.code); toast('Copied'); };
   $('#bios').onclick = function () { api('POST', '/social/bio', { bio: $('#bio').value }).then(function (r) { toast(r.error || 'Saved'); }); };
   $('#myp').onclick = function () { openProfile(S.me.uid); };
   $('#smode').onclick = function (e) { var b = e.target.closest('button'); if (b) { Look.mode = b.dataset.m; ls.set('mode', Look.mode); Look.apply(); Look.applyTheme(); renderMe(); } };
   $('#ssize').onclick = function (e) { var b = e.target.closest('button'); if (b) { Look.size = +b.dataset.z; ls.set('fsize', String(Look.size)); Look.apply(); renderMe(); } };
-  $('#tnot').onchange = function () { var on = $('#tnot').checked; ls.set('muteAll', on ? '0' : '1'); N('setMuteAll', !on); if (on) { CB.notif = function (r) { if (r === 'denied') toast('Allow notifications in Android settings.'); }; N('askNotif'); } };
+  $('#tnot').onchange = function () { var on = $('#tnot').checked; ls.set('muteAll', on ? '0' : '1'); N('setMuteAll', !on); if (on) { CB.notif = function (r) { if (r === 'denied') toast('Allow notifications in Android settings.'); setTimeout(paintNotifCheck, 800); }; N('askNotif'); } paintNotifCheck(); };
   $('#tplay').onchange = function () { var on = $('#tplay').checked; ls.set('sharePlay', on ? '1' : '0'); if (on) presenceNow(); else api('POST', '/social/presence', { game: null }); };
+  $('#tsale').onchange = function () { var on = $('#tsale').checked; ls.set('saleAlerts', on ? '1' : '0'); if (on) { toast('Sale alerts are on'); ls.del('wlAt'); syncSales(true); CB.notif = function () { }; N('askNotif'); } else { api('DELETE', '/me/wishlist'); toast('Sale alerts are off'); } };
   if ($('#tlock')) $('#tlock').onchange = function () { ls.set('lock', $('#tlock').checked ? '1' : '0'); N('setLock', $('#tlock').checked); toast($('#tlock').checked ? 'App lock is on' : 'App lock is off'); };
   $('#cku').onclick = function () { checkUpdate(true); };
   $('#so').onclick = function () { if (confirm('Sign out of SteamLite on this phone?')) { api('POST', '/logout', {}); signedOut(); } };

@@ -42,18 +42,21 @@ final class Notify {
     }
 
     private static void post(Context c, int id, Notification n) {
-        try { ((NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE)).notify(id, n); } catch (Exception e) { }
+        SharedPreferences sp = c.getSharedPreferences("sl", Context.MODE_PRIVATE);
+        try { ((NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE)).notify(id, n); sp.edit().putLong("lastShownAt", System.currentTimeMillis()).apply(); } catch (Throwable e) { sp.edit().putString("lastPushErr", "Could not show it: " + e.getClass().getSimpleName() + " " + e.getMessage()).apply(); }
     }
 
     /** Shows whatever the server (or the background check) sent. */
     static void show(Context c, Map<String, String> d) {
         SharedPreferences sp = c.getSharedPreferences("sl", Context.MODE_PRIVATE);
-        if (sp.getBoolean("muteAll", false) || MainActivity.foreground) return;
+        String t0 = String.valueOf(d.get("t"));
+        if (sp.getBoolean("muteAll", false)) { sp.edit().putString("lastPushErr", "Skipped: notifications are switched off inside SteamLite (Me tab).").apply(); return; }
+        if (MainActivity.foreground && !"test".equals(t0)) { sp.edit().putString("lastPushErr", "Skipped: the app was open, so it shows the message on screen instead.").apply(); return; }   // a test is shown even while the app is open
         channels(c);
         String t = String.valueOf(d.get("t")), title = d.get("title") == null ? "SteamLite" : d.get("title"), body = d.get("body") == null ? "" : d.get("body"), conv = d.get("conv");
         if ("msg".equals(t) && conv != null && !conv.isEmpty()) { message(c, conv, title, d.get("from") == null ? title : d.get("from"), body, false); UnreadWidget.bump(c, title, body); return; }
-        String target = "react".equals(t) && conv != null ? conv : "#friends";
-        int id = "friend".equals(t) ? 77 : "streak".equals(t) ? 78 : ("react" + conv).hashCode();
+        String target = "react".equals(t) && conv != null ? conv : "deal".equals(t) ? "game:" + d.get("appid") : "#friends";
+        int id = "friend".equals(t) ? 77 : "streak".equals(t) ? 78 : "deal".equals(t) ? 79 : ("react" + conv).hashCode();
         Notification.Builder b = builder(c, ACT).setSmallIcon(R.drawable.ic_stat).setContentTitle(title).setContentText(body).setStyle(new Notification.BigTextStyle().bigText(body))
                 .setContentIntent(open(c, id, target)).setAutoCancel(true).setColor(0xff8b5cf6).setWhen(System.currentTimeMillis());
         post(c, id, b.build());

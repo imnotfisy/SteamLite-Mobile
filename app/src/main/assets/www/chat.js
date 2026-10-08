@@ -9,7 +9,7 @@ function act(icon, label, attrs, cls) { return '<button class="act' + (cls ? ' '
 // ---------- the list of chats ----------
 function renderMsgs() {
   var o = S.ov, v = $('#view'), pins = PINNED();
-  var h = '<div class="hdr"><h1>Messages</h1><button class="btn sm ghost" id="newg">' + ic('plus', 15) + ' New group</button></div><div class="pad">';
+  var h = '<div class="hdr"><h1>Messages</h1><button class="btn sm ghost iconb" id="newsb" aria-label="News and polls">' + ic('bell', 17) + (newsUnseen() ? '<i class="ndot"></i>' : '') + '</button><button class="btn sm ghost" id="newg">' + ic('plus', 15) + ' New group</button></div><div class="pad">';
   if (!o) h += skel(6);
   else if (!o.convs.length) h += '<div class="empty">No chats yet.<br>Add a friend, then tap them to say hi.</div>';
   else {
@@ -22,7 +22,7 @@ function renderMsgs() {
   var changed = setHtml(v, h + '</div>');
   if (!changed && v.__bound) return; v.__bound = true;
   bindRows(v);
-  var ng = $('#newg'); if (ng) ng.onclick = newGroup;
+  var ng = $('#newg'); if (ng) ng.onclick = newGroup; var nb = $('#newsb'); if (nb) nb.onclick = openNews;
 }
 // tap opens the chat; press and hold opens the chat's options (swiping sideways changes tab)
 function bindRows(v) {
@@ -305,13 +305,36 @@ function msgMenu(id) {
 }
 function chatMenu() {
   var i = C.info || {};
-  sheet((i.kind === 'dm' && i.peerUid ? act('user', 'View profile', 'data-a="prof"') : '') + act('search', 'Search messages', 'data-a="search"') + act('pin', 'Pinned messages', 'data-a="pins"') + act(i.muted ? 'bell' : 'bellOff', i.muted ? 'Unmute chat' : 'Mute chat', 'data-a="mute"'));
+  sheet((i.kind === 'dm' && i.peerUid ? act('user', 'View profile', 'data-a="prof"') : '') + (i.kind === 'group' ? act('users', 'Members and group settings', 'data-a="members"') : '') + act('search', 'Search messages', 'data-a="search"') + act('pin', 'Pinned messages', 'data-a="pins"') + act(i.muted ? 'bell' : 'bellOff', i.muted ? 'Unmute chat' : 'Mute chat', 'data-a="mute"'));
   $('#sheet').onclick = function (e) {
     var a = e.target.closest('[data-a]'); if (!a) return; var k = a.dataset.a; closeSheet();
     if (k === 'prof') openProfile(i.peerUid);
+    else if (k === 'members') groupSheet();
     else if (k === 'search') searchSheet();
     else if (k === 'mute') api('POST', '/social/mute', { conv: C.id, on: !i.muted }).then(function () { C.info.muted = !i.muted; toast(i.muted ? 'Unmuted' : 'Muted'); });
     else if (k === 'pins') { sheet('<h3 style="margin:0 0 8px">Pinned</h3>' + ((i.pins || []).length ? i.pins.map(function (p) { return '<button class="act" data-j="' + p.id + '"><span><b>' + esc(p.name) + '</b><br>' + esc(plain(p.text)) + '</span></button>'; }).join('') : '<div class="empty">Nothing pinned.</div>')); jumpHandler(); }
+  };
+}
+// ---------- group chats: members, add people, rename, leave ----------
+function groupSheet() {
+  var i = C.info || {}, me = S.me && S.me.uid, mem = i.members || [], mine = !!i.owner;
+  var h = '<h3 style="margin:0 0 2px">' + esc(i.name || 'Group') + '</h3><div class="sub" style="margin-bottom:8px">' + mem.length + ' of 20 people' + (mine ? ' · you are the owner' : '') + '</div>';
+  h += mem.map(function (m) { return '<div class="row" style="cursor:default"><div class="av sm"' + avStyle(m.avatar) + '></div><div class="grow"><div class="name">' + nameHtml(m) + (m.role === 'owner' ? '<span class="chip gold" style="margin-left:6px">Owner</span>' : '') + '</div><div class="sub">' + (m.playing ? 'Playing ' + esc(m.playing.name) : m.online ? 'Online' : 'Offline') + '</div></div>' + (mine && m.uid !== me ? '<button class="btn sm ghost" data-rm="' + m.uid + '" aria-label="Remove ' + esc(m.name) + '">' + ic('x', 15) + '</button>' : '') + '</div>'; }).join('');
+  if (mine) h += act('plus', 'Add people', 'data-a="add"', 'acc') + act('edit', 'Rename group', 'data-a="ren"');
+  h += act('x', 'Leave group', 'data-a="leave"', 'bad');
+  sheet(h);
+  $('#sheet').onclick = function (e) {
+    var rm = e.target.closest('[data-rm]'), a = e.target.closest('[data-a]');
+    if (rm) { if (!confirm('Remove this person from the group?')) return; api('POST', '/social/group/remove', { conv: C.id, uid: rm.dataset.rm }).then(function (r) { if (r.error) return toast(r.error); toast('Removed'); refreshAll(); setTimeout(groupSheet, 700); }); return; }
+    if (!a) return; var k = a.dataset.a;
+    if (k === 'ren') { var nm = prompt('New group name', i.name || ''); if (nm && nm.trim().length > 1) api('POST', '/social/group/rename', { conv: C.id, name: nm.trim() }).then(function (r) { if (r.error) return toast(r.error); closeSheet(); toast('Renamed'); refreshAll(); tick(); }); }
+    else if (k === 'leave') { if (confirm('Leave this group?' + (mine && mem.length > 1 ? ' Someone else becomes the owner.' : ''))) api('POST', '/social/group/remove', { conv: C.id, uid: me }).then(function (r) { if (r.error) return toast(r.error); closeSheet(); closeChat(true); toast('You left the group'); tick(); }); }
+    else if (k === 'add') {
+      var have = {}; mem.forEach(function (m) { have[m.uid] = 1; }); var fr = ((S.ov && S.ov.friends) || []).filter(function (f) { return !have[f.uid]; });
+      if (!fr.length) return toast('All your friends are already in this group.');
+      sheet('<h3 style="margin:0 0 8px">Add people</h3>' + fr.map(function (f) { return '<button class="act" data-add="' + f.uid + '"><span class="ai"><div class="av sm"' + avStyle(f.avatar) + ' style="width:30px;height:30px"></div></span><span>' + esc(f.name) + '</span></button>'; }).join(''));
+      $('#sheet').onclick = function (ev) { var b = ev.target.closest('[data-add]'); if (!b) return; api('POST', '/social/group/add', { conv: C.id, uid: b.dataset.add }).then(function (r) { if (r.error) return toast(r.error); toast('Added'); closeSheet(); refreshAll(); }); };
+    }
   };
 }
 function jumpHandler() { setTimeout(function () { $('#sheet').onclick = function (e) { var j = e.target.closest('[data-j]'); if (j) { closeSheet(); jumpTo(+j.dataset.j); } }; }, 0); }

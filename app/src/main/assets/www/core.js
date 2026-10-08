@@ -215,8 +215,29 @@ function showUpdate() {
   if (!force && ls.get('updSkip') === u.version) return;
   el.className = force ? 'force' : '';
   el.innerHTML = '<div class="ub">' + (force ? '<div class="logo" style="margin:0 auto 14px">' + LOGO + '</div><b style="font-size:20px">Update required</b><br><br>' : '') + '<span>SteamLite Mobile ' + esc(u.version) + ' is ready' + (u.notes && !force ? ': ' + esc(String(u.notes).slice(0, 60)) : '') + '.</span>' + (force ? '<div class="sub wrap" style="margin-top:8px">' + esc(u.notes || 'This version is too old to keep working.') + '</div>' : '') + '<button id="updgo">Update</button>' + (force ? '' : '<button id="updx">' + ic('x', 16) + '</button>') + '</div>';
-  $('#updgo').onclick = function () { N('openUrl', u.downloadUrl); toast('Download the file, then tap it to install'); };
+  $('#updgo').onclick = startInAppUpdate;
   if (!force) $('#updx').onclick = function () { ls.set('updSkip', u.version); el.innerHTML = ''; };
+}
+// in-app update: download inside the app, then Android asks you to confirm the install
+var UT = 0;
+function startInAppUpdate() {
+  var u = UPD; if (!u) return; N('updReset'); N('updStart', u.downloadUrl, u.sha256 || '', +(u.size || 0)); hp('ok'); trackUpdate();
+}
+function trackUpdate() {
+  clearInterval(UT); var el = $('#upd'), u = UPD || {}, force = el.className === 'force';
+  var bar = function (inner, extra) { el.className = force ? 'force' : ''; el.innerHTML = '<div class="ub">' + (force ? '<div class="logo" style="margin:0 auto 14px">' + LOGO + '</div>' : '') + '<div style="flex:1">' + inner + '</div>' + (extra || '') + '</div>'; };
+  var tick2 = function () {
+    var s = {}; try { s = JSON.parse(N('updState') || '{}'); } catch (e) { }
+    if (s.state === 'downloading') bar('Downloading ' + esc(u.version || '') + '... ' + (s.pct || 0) + '%<div class="upbar"><i style="width:' + (s.pct || 0) + '%"></i></div>');
+    else if (s.state === 'installing') bar('Almost there. Confirm the install on the Android screen.');
+    else if (s.state === 'needperm') bar('Android needs your OK before SteamLite can update itself. Allow it, then come back.', '<button id="upperm">Allow</button>');
+    else if (s.state === 'error') { clearInterval(UT); bar(esc(s.error || 'The update did not work.'), '<button id="upagain">Try again</button><button id="uppage" aria-label="Open the download page">Page</button>'); }
+    else if (s.state === 'done') { clearInterval(UT); bar('Updated! SteamLite is restarting.'); }
+    else if (s.state === 'idle') { clearInterval(UT); showUpdate(); return; }
+    var p = $('#upperm'); if (p) p.onclick = function () { N('openInstallSettings'); };
+    var a = $('#upagain'); if (a) a.onclick = startInAppUpdate; var g = $('#uppage'); if (g) g.onclick = function () { N('openUrl', u.downloadUrl); };
+  };
+  tick2(); UT = setInterval(tick2, 500);
 }
 function maybeCheckUpdate() { var last = +(ls.get('updAt') || 0); if (Date.now() - last > 6 * 3600 * 1000) checkUpdate(false); else if (UPD) showUpdate(); }
 
@@ -260,7 +281,8 @@ function boot() {
     clearInterval(S.poll); S.poll = setInterval(tick, 8000); tick();
     startPresence(); N('setMuteAll', ls.get('muteAll') === '1');
     api('GET', '/social/gif?q=').then(function (g) { S.gifOk = !!(g && g.ok); });
-    if (!ls.get('notifAsked')) { ls.set('notifAsked', '1'); setTimeout(function () { CB.notif = function () { }; N('askNotif'); }, 2500); }
+    loadNews(); loadBackup(); setInterval(loadNews, 600000);
+    setTimeout(checkNotifBanner, 3500);
     var crash = N('takeCrash'); if (crash) reportError('crash: ' + crash);
     if (m.owner !== undefined) cset('me', S.me);
   });
@@ -274,7 +296,16 @@ function tick() {
     if (S.tab === 'friends') renderFriends();
   });
 }
-window.onResumeApp = function () { if (S.tok) { tick(); presenceNow(); } maybeCheckUpdate(); };
+window.onResumeApp = function () { if (S.tok) { tick(); presenceNow(); setTimeout(checkNotifBanner, 1200); } maybeCheckUpdate(); };
+// a bar at the top when Android is blocking SteamLite's notifications (the usual reason none arrive)
+function notifState() { try { return JSON.parse(N('notifState') || '{}'); } catch (e) { return {}; } }
+function checkNotifBanner() {
+  var el = $('#nbar'); if (!el) return; var s = notifState(); var off = s.permission === false || s.enabled === false || s.channel === false;
+  if (!off || ls.get('nbarHide') === String(Math.floor(Date.now() / 86400000))) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="ub"><span>Notifications are off, so you will miss messages.</span><button id="nbgo">Turn on</button><button id="nbx" aria-label="Hide">' + ic('x', 16) + '</button></div>';
+  $('#nbgo').onclick = function () { CB.notif = function (r) { setTimeout(checkNotifBanner, 800); }; N('askNotif'); };
+  $('#nbx').onclick = function () { ls.set('nbarHide', String(Math.floor(Date.now() / 86400000))); el.innerHTML = ''; };
+}
 function buildTabs() {
   var t = $('#tabs'); t.style.display = 'flex';
   t.innerHTML = TABS.map(function (x) { return '<button data-t="' + x[0] + '">' + IC[x[0]] + x[1] + '<span class="badge" id="bd-' + x[0] + '" style="display:none"></span></button>'; }).join('');
@@ -294,7 +325,7 @@ function refreshTab() {
   else if (t === 'themes') renderThemes(true);
   else if (t === 'me') api('GET', '/me').then(function (m) { if (m.steamid) { S.me = Object.assign(S.me, m); cset('me', S.me); if (S.tab === 'me') renderMe(); } });
 }
-function openFromNotif(target) { if (target === '#friends') { go('friends'); return; } go('msgs'); openChat(target); }
+function openFromNotif(target) { if (target === '#friends') { go('friends'); return; } if (String(target).indexOf('game:') === 0) { go('lib'); openGame(+String(target).slice(5)); return; } go('msgs'); openChat(target); }
 window.openFromNotif = openFromNotif;
 
 // ---------- your Steam key (saved on your account) and what you are playing ----------

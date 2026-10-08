@@ -17,7 +17,8 @@ if ($LASTEXITCODE -ne 0) { throw 'release create failed' }
 $a = (& $gh release view "v$ver" --repo $repo --json assets | ConvertFrom-Json).assets | Select-Object -First 1
 if ($a.size -ne (Get-Item $named).Length) { throw 'asset size mismatch - not touching version.json' }
 
-$obj = [ordered]@{ version = $ver; downloadUrl = "https://github.com/$repo/releases/download/v$ver/SteamLite-Mobile-$ver.apk"; notes = $Notes }
+$sha = (Get-FileHash $named -Algorithm SHA256).Hash.ToLower()
+$obj = [ordered]@{ version = $ver; downloadUrl = "https://github.com/$repo/releases/download/v$ver/SteamLite-Mobile-$ver.apk"; sha256 = $sha; size = (Get-Item $named).Length; notes = $Notes }
 if ($MinVersion) { $obj.minVersion = $MinVersion }
 $text = ($obj | ConvertTo-Json)
 $sha = ''; try { $sha = [string](& $gh api "repos/$repo/contents/version.json" | ConvertFrom-Json).sha } catch { }

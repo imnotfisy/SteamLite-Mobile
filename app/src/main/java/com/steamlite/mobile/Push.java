@@ -12,7 +12,8 @@ final class Push {
     /** Asks Firebase for this phone's address and registers it, if signed in. */
     static void start(final Context c) {
         try {
-            FirebaseMessaging.getInstance().getToken().addOnSuccessListener(t -> register(c, t));
+            final SharedPreferences sp = c.getSharedPreferences("sl", Context.MODE_PRIVATE);
+            FirebaseMessaging.getInstance().getToken().addOnSuccessListener(t -> register(c, t)).addOnFailureListener(e -> sp.edit().putString("pushErr", "Google could not give this phone a push address: " + String.valueOf(e.getMessage())).apply());
         } catch (Exception e) { }
     }
 
@@ -26,7 +27,8 @@ final class Push {
                 JSONObject h = new JSONObject(); h.put("Authorization", "Bearer " + tok); h.put("Content-Type", "application/json");
                 JSONObject b = new JSONObject(); b.put("token", fcm);
                 Object[] r = Net.call("POST", Net.BASE + "/push/register", h, b.toString());
-                if ((Integer) r[0] == 200 && new JSONObject((String) r[1]).optBoolean("enabled")) { sp.edit().putBoolean("pushOn", true).apply(); PollService.cancel(c); }
+                if ((Integer) r[0] == 200 && new JSONObject((String) r[1]).optBoolean("enabled")) { sp.edit().putBoolean("pushOn", true).remove("pushErr").apply(); PollService.cancel(c); }
+                else sp.edit().putBoolean("pushOn", false).putString("pushErr", (Integer) r[0] == 0 ? "The phone could not reach SteamLite Online." : "SteamLite Online answered " + r[0] + " when registering this phone.").apply();
             } catch (Exception e) { }
         }).start();
     }

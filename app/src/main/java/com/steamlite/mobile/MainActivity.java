@@ -163,6 +163,8 @@ public class MainActivity extends Activity {
         super.onResume();
         foreground = true;
         if (web != null) web.evaluateJavascript("window.onResumeApp&&onResumeApp()", null);
+        Updater.resume(this);   // back from Android's "allow installs" page: carry on with the update
+        if (!sp.getString("token", "").isEmpty()) Push.start(this);   // re-register this phone every time the app opens
         if (sp.getBoolean("lock", false) && leftAt > 0 && System.currentTimeMillis() - leftAt > 20000 && !locking) askLock();
         leftAt = 0;
         android.app.NotificationManager nm = (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
@@ -240,6 +242,11 @@ public class MainActivity extends Activity {
         if (req == PERM_NOTIF) js("window.__cb('notif'," + JSONObject.quote(ok ? "granted" : "denied") + ")");
     }
 
+    private void openNotifSettingsNow() {
+        try { startActivity(new Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, getPackageName())); }
+        catch (Exception e) { try { startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()))); } catch (Exception x) { } }
+    }
+
     /** What the page can ask the phone to do. Network calls go through here, so no browser cross-site rules get in the way. */
     class Bridge {
         @JavascriptInterface
@@ -284,12 +291,59 @@ public class MainActivity extends Activity {
         public void setMuteAll(boolean on) { sp.edit().putBoolean("muteAll", on).apply(); }
 
         @JavascriptInterface
-        public void askNotif() {
+public void askNotif() {
             ui.post(() -> {
-                if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, PERM_NOTIF);
+                boolean granted = Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+                if (!granted) {
+                    // after two refusals Android stops showing its question, so send the person to the settings page instead
+                    if (sp.getBoolean("permAsked", false) && !shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) { openNotifSettingsNow(); js("window.__cb('notif','settings')"); }
+                    else { sp.edit().putBoolean("permAsked", true).apply(); requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, PERM_NOTIF); }
+                } else if (!((android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE)).areNotificationsEnabled()) { openNotifSettingsNow(); js("window.__cb('notif','settings')"); }
                 else js("window.__cb('notif','granted')");
             });
         }
+
+        /** What is set up for notifications on this phone, as JSON, so the page can show what is wrong. */
+        @JavascriptInterface
+        public String notifState() {
+            try {
+                JSONObject o = new JSONObject();
+                boolean perm = Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+                android.app.NotificationManager nm = (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                o.put("permission", perm); o.put("enabled", nm.areNotificationsEnabled());
+                boolean ch = true; if (Build.VERSION.SDK_INT >= 26) { android.app.NotificationChannel c = nm.getNotificationChannel(Notify.MSG); ch = c == null || c.getImportance() != android.app.NotificationManager.IMPORTANCE_NONE; }
+                o.put("channel", ch); o.put("push", sp.getBoolean("pushOn", false)); o.put("hasToken", !sp.getString("fcm", "").isEmpty()); o.put("error", sp.getString("pushErr", ""));
+                boolean play = false; try { play = getPackageManager().getApplicationInfo("com.google.android.gms", 0).enabled; } catch (Exception e) { } o.put("play", play);
+                o.put("muted", sp.getBoolean("muteAll", false)); o.put("sdk", Build.VERSION.SDK_INT);
+                o.put("lastPushAt", sp.getLong("lastPushAt", 0)); o.put("lastShownAt", sp.getLong("lastShownAt", 0)); o.put("lastPushErr", sp.getString("lastPushErr", "")); o.put("lastPushT", sp.getString("lastPushT", ""));
+                android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE); o.put("batteryOpt", pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName())); o.put("maker", Build.MANUFACTURER == null ? "" : Build.MANUFACTURER);
+                return o.toString();
+            } catch (Exception e) { return "{}"; }
+        }
+
+        @JavascriptInterface
+        public void openNotifSettings() { ui.post(() -> openNotifSettingsNow()); }
+
+        /** The phone's page about this app (battery, permissions, data usage). */
+        @JavascriptInterface
+        public void openAppSettings() { ui.post(() -> { try { startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()))); } catch (Exception e) { } }); }
+
+        /** In-app update: download the new version and hand it to Android's installer. */
+        @JavascriptInterface
+        public void updStart(String url, String sha, double size) { Updater.start(MainActivity.this, url, sha, (long) size); }
+
+        @JavascriptInterface
+        public String updState() { try { JSONObject o = new JSONObject(); o.put("state", Updater.state); o.put("pct", Updater.pct); o.put("error", Updater.error); return o.toString(); } catch (Exception e) { return "{}"; } }
+
+        @JavascriptInterface
+        public void updReset() { Updater.state = "idle"; Updater.error = ""; Updater.pct = 0; }
+
+        /** Android's page where the person lets SteamLite install updates. */
+        @JavascriptInterface
+        public void openInstallSettings() { ui.post(() -> { try { startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()))); } catch (Exception e) { openNotifSettingsNow(); } }); }
+
+        @JavascriptInterface
+        public void repush() { ui.post(() -> Push.start(MainActivity.this)); }
 
         @JavascriptInterface
         public void pickImage(final String id) {

@@ -10,6 +10,8 @@ public class FcmService extends FirebaseMessagingService {
 
     @Override
     public void onMessageReceived(RemoteMessage m) {
-        try { Notify.show(getApplicationContext(), m.getData()); } catch (Exception e) { }
+        android.content.SharedPreferences sp = getApplicationContext().getSharedPreferences("sl", MODE_PRIVATE);
+        sp.edit().putLong("lastPushAt", System.currentTimeMillis()).putString("lastPushT", String.valueOf(m.getData().get("t"))).remove("lastPushErr").apply();   // proof the phone received it
+        try { Notify.show(getApplicationContext(), m.getData()); } catch (Throwable e) { sp.edit().putString("lastPushErr", e.getClass().getSimpleName() + ": " + e.getMessage()).apply(); }
     }
 }
