@@ -56,7 +56,7 @@ public class MainActivity extends Activity {
     private long recStart;
     private long leftAt = 0;
     private boolean locking = false, pageReady = false;
-    private String pendingOpen = "";
+    private String pendingOpen = "", pendingShare = "";
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
@@ -68,7 +68,7 @@ public class MainActivity extends Activity {
             try { sp.edit().putString("crash", String.valueOf(e) + " @ " + (e.getStackTrace().length > 0 ? e.getStackTrace()[0] : "")).commit(); } catch (Exception x) { }
             if (old != null) old.uncaughtException(t, e);
         });
-        PollService.ensureChannel(this);
+        Notify.channels(this);
         web = new WebView(this);
         web.setBackgroundColor(0xff0b0f17);
         setContentView(web);
@@ -92,7 +92,7 @@ public class MainActivity extends Activity {
             }
 
             @Override
-            public void onPageFinished(WebView v, String url) { pageReady = true; deliverOpen(); }
+            public void onPageFinished(WebView v, String url) { pageReady = true; deliverOpen(); deliverShare(); }
         });
         // confirm() / prompt() / alert() in the page need this, or they do nothing
         web.setWebChromeClient(new WebChromeClient() {
@@ -120,6 +120,7 @@ public class MainActivity extends Activity {
         });
         pendingOpen = b == null ? getIntent().getStringExtra("open") : null;
         if (pendingOpen == null) pendingOpen = "";
+        handleSend(getIntent());
         web.loadUrl("file:///android_asset/www/index.html");
     }
 
@@ -128,6 +129,27 @@ public class MainActivity extends Activity {
         super.onNewIntent(i);
         setIntent(i);
         String o = i.getStringExtra("open"); if (o != null) { pendingOpen = o; deliverOpen(); }
+        handleSend(i);
+    }
+
+    /** Something was shared to SteamLite from another app (text, a link or a picture). */
+    private void handleSend(final Intent i) {
+        if (i == null || !Intent.ACTION_SEND.equals(i.getAction())) return;
+        final String type = i.getType() == null ? "" : i.getType();
+        if (type.startsWith("text/")) {
+            String t = i.getStringExtra(Intent.EXTRA_TEXT); if (t == null || t.isEmpty()) return;
+            try { JSONObject o = new JSONObject(); o.put("kind", "text"); o.put("text", t.length() > 1000 ? t.substring(0, 1000) : t); pendingShare = o.toString(); } catch (Exception e) { }
+            deliverShare();
+        } else if (type.startsWith("image/")) {
+            final Uri u = i.getParcelableExtra(Intent.EXTRA_STREAM); if (u == null) return;
+            pool.execute(() -> { try { JSONObject o = new JSONObject(processImage(u)); o.put("kind", "image"); pendingShare = o.toString(); ui.post(this::deliverShare); } catch (Exception e) { } });
+        }
+    }
+
+    private void deliverShare() {
+        if (!pageReady || pendingShare.isEmpty()) return;
+        final String s = pendingShare; pendingShare = "";
+        ui.postDelayed(() -> web.evaluateJavascript("window.onShare&&onShare(" + JSONObject.quote(s) + ")", null), 900);
     }
 
     private void deliverOpen() {
@@ -145,6 +167,7 @@ public class MainActivity extends Activity {
         leftAt = 0;
         android.app.NotificationManager nm = (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (nm != null) nm.cancelAll();
+        Notify.clearHistory(this);
     }
 
     @Override
@@ -244,9 +267,18 @@ public class MainActivity extends Activity {
         /** The page gives us the sign-in token so the background check can look for new messages. Empty = signed out. */
         @JavascriptInterface
         public void setToken(String tok) {
+            String old = sp.getString("token", "");
             sp.edit().putString("token", tok == null ? "" : tok).apply();
-            if (tok == null || tok.isEmpty()) { PollService.cancel(MainActivity.this); sp.edit().remove("n_req").apply(); } else PollService.schedule(MainActivity.this);
+            if (tok == null || tok.isEmpty()) { Push.unregister(MainActivity.this, old); PollService.cancel(MainActivity.this); sp.edit().remove("n_req").remove("w_unread").apply(); UnreadWidget.refresh(MainActivity.this); }
+            else { if (!sp.getBoolean("pushOn", false)) PollService.schedule(MainActivity.this); Push.start(MainActivity.this); }
         }
+
+        /** The page tells the home-screen widget how many unread messages there are. */
+        @JavascriptInterface
+        public void setWidget(int unread, String title, String text) { UnreadWidget.set(MainActivity.this, unread, title == null ? "" : title, text == null ? "" : text); }
+
+        @JavascriptInterface
+        public boolean pushOn() { return sp.getBoolean("pushOn", false); }
 
         @JavascriptInterface
         public void setMuteAll(boolean on) { sp.edit().putBoolean("muteAll", on).apply(); }

@@ -129,6 +129,42 @@ a{color:inherit}
 #ptr .spin{margin:0;border-color:rgba(127,127,127,.4);border-top-color:var(--acc)}
 #viewwrap{position:relative;flex:1;display:flex;flex-direction:column;min-height:0}
 
+/* icons, menus, game pages (1.0.1) */
+.ic{flex:none;vertical-align:-3px}
+.act{display:flex;align-items:center;gap:14px}.act .ai{color:var(--mut);display:grid;flex:none}.act span:last-child{flex:1;min-width:0}
+.act.bad,.act.bad .ai{color:var(--bad)}.act.acc,.act.acc .ai{color:var(--acc)}.act.mutd,.act.mutd .ai{color:var(--mut)}
+.ai{display:inline-grid;color:var(--mut)}
+.mi{display:inline-flex;color:var(--mut);margin:0 3px}.mi.gold{color:var(--gold)}
+.gav{display:grid;place-items:center;height:100%;color:var(--mut)}
+.fl{display:inline-flex;align-items:center;gap:2px;color:#ff8a3d}
+.btn.wide{width:100%;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn.sm,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.liked{color:#ff5d8f}
+.cb svg,.send svg{display:block}.cb{color:var(--text)}
+.seg2{display:flex;gap:6px;margin:10px 0 0;overflow-x:auto;scrollbar-width:none}.seg2 .btn{white-space:nowrap}
+.seen{text-align:right;font-size:11px;padding-right:6px}
+.pm{display:inline-flex;margin-right:4px;opacity:.8;vertical-align:-1px}
+.lt{display:flex;align-items:center;gap:6px}
+.tby{display:flex;align-items:center;gap:4px}
+.chip.owned{color:var(--ok)}
+.gifs{grid-template-columns:repeat(2,1fr)}.gifp{width:100%;border-radius:12px;display:block;background:var(--card2);min-height:70px;object-fit:cover}
+.opt .ai{margin-right:2px}
+/* game page */
+#gpage{position:fixed;inset:0;background:var(--bg);z-index:25;overflow-y:auto;padding-top:env(safe-area-inset-top);transform:translateX(100%);transition:transform .3s cubic-bezier(.2,.8,.2,1);overscroll-behavior:contain}
+#gpage.open{transform:none}
+.gph{background:var(--bg)!important}
+.gphero{margin:0 16px 10px;border-radius:16px;overflow:hidden}
+.gpt{font-size:1.4em;margin:6px 0 8px}
+.gprice{font-size:1.05em;font-weight:700;margin-bottom:12px}.gprice .off{background:var(--ok);color:#000;border-radius:6px;padding:1px 6px;font-size:.85em}
+.grid.g3{grid-template-columns:repeat(3,1fr);margin-bottom:12px}.grid.g3 .card{margin:0;text-align:center}
+.gpacts{display:flex;gap:8px;margin:4px 0 6px}.gpacts .btn{flex:1}
+.gpd{margin:0 0 6px;line-height:1.5;color:var(--text);opacity:.9}
+.shots{display:flex;gap:8px;overflow-x:auto;margin:12px -16px 0;padding:0 16px;scrollbar-width:none}.shot{height:120px;border-radius:10px;flex:none;background:var(--card2)}
+.ach{display:flex;gap:10px;align-items:center;padding:6px 0;color:var(--gold)}.ach .name,.ach .sub{color:inherit}.ach .name{color:var(--text)}.ach .sub{color:var(--mut)}
+.kv>div{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line)}.kv>div:last-child{border:0}.kv span{color:var(--mut)}.kv b{text-align:right;font-weight:600}
+.stat{padding:7px 0;cursor:pointer}.st-l{display:flex;justify-content:space-between;margin-bottom:4px}.st-l span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:10px}
+@media (min-width:720px){#gpage{left:381px}}
+
 /* smoothness */
 html{overscroll-behavior:none}#view,#msgs,#sheet{overscroll-behavior:contain}
 button,.row,.card,.game,.gcard{transition:transform .14s ease,background .18s ease,opacity .18s ease,box-shadow .18s ease}
@@ -167,3 +203,61 @@ button,.row,.card,.game,.gcard{transition:transform .14s ease,background .18s ea
   #sheet{left:auto;right:auto;left:50%;width:min(520px,100%);margin-left:-260px;border-radius:22px 22px 0 0}
   .grid{grid-template-columns:repeat(2,1fr)}
 }
+
+/* ===== 1.0.1: fluid, a little bouncy motion ===== */
+:root{--spring:cubic-bezier(.34,1.56,.64,1);--spring2:cubic-bezier(.3,1.9,.5,1);--smooth:cubic-bezier(.22,1,.36,1)}
+/* taps squash down and spring back */
+button,.row,.card,.game,.gcard,.stat,.act{transition:transform .38s var(--spring),background .2s ease,opacity .2s ease,box-shadow .25s ease!important}
+.btn:active,.row:active,.game:active,.card:active,.tabs button:active,.act:active,.send:active,.cb:active,.stat:active{transform:scale(.93)!important;transition-duration:.09s!important}
+.game:active{transform:scale(.96)!important}
+/* lists and cards rise with a small overshoot and stagger */
+@keyframes rise{0%{opacity:0;transform:translateY(22px) scale(.97)}60%{opacity:1;transform:translateY(-4px) scale(1.01)}100%{opacity:1;transform:none}}
+.anim .hdr,.anim .seg,.anim .pad>*,.anim .grid>*,.anim #gl>*{animation:rise .62s var(--smooth) both!important}
+/* tab icon bounce, tab bar indicator slides in */
+@keyframes bump{0%{transform:scale(1)}30%{transform:scale(1.4) translateY(-3px)}55%{transform:scale(.9)}80%{transform:scale(1.08)}100%{transform:scale(1)}}
+.tabs button.on svg{animation:bump .55s var(--smooth)!important}
+.tabs button.on::before{animation:bar .45s var(--spring)!important}
+@keyframes bar{from{width:0;opacity:0}to{width:26px;opacity:1}}
+/* sheets bounce up (extra padding hides any gap while they overshoot) */
+#sheet{transition:transform .5s var(--spring)!important;margin-bottom:-60px;padding-bottom:calc(76px + env(safe-area-inset-bottom))!important}
+#sheetbg{transition:opacity .3s ease,visibility .3s!important}
+/* full-screen pages glide in, no overshoot (it would show a gap) */
+#chat,#gpage{transition:transform .46s var(--smooth)!important}
+/* new messages pop in with a bounce */
+@keyframes pop{0%{opacity:0;transform:translateY(14px) scale(.85)}55%{opacity:1;transform:translateY(-2px) scale(1.05)}80%{transform:scale(.99)}100%{opacity:1;transform:none}}
+.m.new{animation:pop .5s var(--smooth)!important}
+.m{transition:transform .35s var(--spring)!important}
+/* toast drops in with a bounce */
+#toast{transform:translate(-50%,24px) scale(.9)!important;transition:opacity .25s ease,transform .5s var(--spring)!important}
+#toast.on{transform:translate(-50%,0) scale(1)!important}
+/* switches: the knob springs across */
+.sw i{transition:background .25s ease!important}.sw i::after{transition:transform .45s var(--spring2)!important}
+.sw input:checked+i::after{transform:translateX(18px)!important}
+/* chips and filters */
+.seg button,.seg2 .btn{transition:background .25s ease,color .25s ease,transform .38s var(--spring)!important}
+.seg button:active,.seg2 .btn:active{transform:scale(.9)!important}
+.seg button.on{animation:chipOn .45s var(--spring)}
+@keyframes chipOn{from{transform:scale(.88)}to{transform:none}}
+/* send / mic button, emoji, reaction picks */
+.send{transition:transform .38s var(--spring),background .2s!important}.send:active{transform:scale(.85)!important}
+.emo button{transition:transform .35s var(--spring2)!important}.emo button:active{transform:scale(1.5)!important}
+/* the new-messages pill bounces in */
+#newpill{transform:translateX(-50%) translateY(26px) scale(.8)!important;transition:opacity .25s ease,transform .5s var(--spring)!important}
+#newpill.on{transform:translateX(-50%) translateY(0) scale(1)!important}
+/* covers and photos ease in with a gentle zoom */
+.gi img{transition:opacity .5s ease,transform .8s var(--smooth)!important;transform:scale(1.08)}
+.gi img.ok{transform:none}
+.mimg,.shot{transition:transform .35s var(--spring)}.mimg:active,.shot:active{transform:scale(.97)}
+/* update banner and the offline note slide down */
+@keyframes slideIn{from{opacity:0;transform:translateY(-100%)}to{opacity:1;transform:none}}
+#upd .ub,#off .ob{animation:slideIn .5s var(--spring) both!important}
+/* pull-to-refresh bubble grows with a spring */
+#ptr{transition:height .35s var(--spring)}
+/* progress bars fill smoothly */
+.bar i,.vm .vb i{transition:width .7s var(--smooth)!important}
+@keyframes grow{from{width:0}}
+.anim .bar i{animation:grow .9s var(--smooth) both}
+/* viewer fades and zooms */
+#viewer img{animation:zoomIn .4s var(--spring)}
+@keyframes zoomIn{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

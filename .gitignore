@@ -3,3 +3,5 @@ build/
 local.properties
 *.apk
 signing/
+app/google-services.json
+

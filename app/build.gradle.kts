@@ -2,6 +2,8 @@
 
 plugins {
     id("com.android.application")
+    // push notifications: the plugin reads app/google-services.json (not in the public repo)
+    id("com.google.gms.google-services")
 }
 
 // release signing: the key lives in ../signing (never uploaded). Updates only install over an earlier
@@ -21,8 +23,8 @@ android {
         applicationId = "com.steamlite.mobile"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.1"
     }
 
     signingConfigs {
@@ -51,4 +53,8 @@ android {
     }
 }
 
+dependencies {
+    implementation(platform("com.google.firebase:firebase-bom:35.0.0"))
+    implementation("com.google.firebase:firebase-messaging")
+}
 

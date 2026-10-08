@@ -63,14 +63,14 @@ public class PollService extends JobService {
     static void check(Context c) throws Exception {
         SharedPreferences sp = c.getSharedPreferences("sl", Context.MODE_PRIVATE);
         String tok = sp.getString("token", "");
-        if (tok.isEmpty() || sp.getBoolean("muteAll", false) || MainActivity.foreground) return;
+        if (tok.isEmpty() || sp.getBoolean("muteAll", false) || MainActivity.foreground || sp.getBoolean("pushOn", false)) return;   // while push works this is not needed
         JSONObject h = new JSONObject(); h.put("Authorization", "Bearer " + tok);
         Object[] r = Net.call("GET", Net.BASE + "/social/overview", h, null);
         int code = (Integer) r[0];
         if (code == 401) { sp.edit().putString("token", "").apply(); return; }
         if (code != 200) return;
         JSONObject o = new JSONObject((String) r[1]);
-        ensureChannel(c);
+        Notify.channels(c);
         SharedPreferences.Editor ed = sp.edit();
         int shown = 0;
         JSONArray convs = o.optJSONArray("convs");
@@ -87,15 +87,20 @@ public class PollService extends JobService {
             if ("group".equals(cv.optString("kind")) && !from.isEmpty()) text = from + ": " + text;
             int n = cv.optInt("unread");
             if (n > 1) text = text + "  (" + n + " new)";
-            notify(c, id.hashCode(), title, text, id);
+            Notify.message(c, id, title, from.isEmpty() ? title : from, text, false);
             shown++;
         }
         JSONArray inc = o.optJSONArray("incoming");
         int cnt = inc != null ? inc.length() : 0;
-        if (cnt > sp.getInt("n_req", 0)) notify(c, 77, "Friend request", cnt == 1 ? inc.getJSONObject(0).optString("name") + " wants to be your friend" : cnt + " people want to be your friend", "#friends");
+        if (cnt > sp.getInt("n_req", 0)) { java.util.Map<String, String> m = new java.util.HashMap<>(); m.put("t", "friend"); m.put("title", "Friend request"); m.put("body", cnt == 1 ? inc.getJSONObject(0).optString("name") + " wants to be your friend" : cnt + " people want to be your friend"); Notify.show(c, m); }
         ed.putInt("n_req", cnt);
         ed.apply();
+        UnreadWidget.set(c, o.optInt("unread"), shownTitle(convs), shownText(convs));
     }
+
+    private static String shownTitle(JSONArray convs) { try { for (int i = 0; convs != null && i < convs.length(); i++) { JSONObject cv = convs.getJSONObject(i); if (cv.optInt("unread") > 0) return cv.optString("name"); } } catch (Exception e) { } return ""; }
+
+    private static String shownText(JSONArray convs) { try { for (int i = 0; convs != null && i < convs.length(); i++) { JSONObject cv = convs.getJSONObject(i); if (cv.optInt("unread") > 0 && cv.optJSONObject("last") != null) return cv.getJSONObject("last").optString("text"); } } catch (Exception e) { } return ""; }
 
     static void notify(Context c, int id, String title, String text, String target) {
         Intent i = new Intent(c, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra("open", target);
