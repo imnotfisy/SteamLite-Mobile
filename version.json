@@ -1,7 +1,7 @@
 {
-    "version":  "1.1.0",
-    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.1.0/SteamLite-Mobile-1.1.0.apk",
-    "sha256":  "8e5dc442882b8137647f1561f76cb6e06d61e8d59a2b21435bc9a6d38946f7bb",
-    "size":  2920960,
-    "notes":  "In-app updates (no more downloading from the browser), official themes, group management, news and polls, sale alerts, Play on my PC, favourites synced from your PC, and a Notification check on the Me tab. Note: from this version on the app updates itself. If you have 1.0.1 or older, download this file once from GitHub and install it over the old one."
+    "version":  "1.1.1",
+    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.1.1/SteamLite-Mobile-1.1.1.apk",
+    "sha256":  "f1fb482d2742b0657be97dcc1793a0b1171079e913aa269f72e2f22d1b54732a",
+    "size":  2921788,
+    "notes":  "You can now add or change your Steam Web API key from the Me tab. Message notifications now show the sender\u0027s name in group chats. Message notifications themselves were fixed on the server, so they work without an update. The app updates itself from here: tap Update when the banner appears."
 }
