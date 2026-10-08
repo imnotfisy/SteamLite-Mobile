@@ -423,6 +423,33 @@ function paintNotifCheck(result) {
   };
 }
 
+// ---------- the Steam Web API key: see it is saved, add it or change it ----------
+function paintKeyCard() {
+  var st = $('#keystat'), bt = $('#keybtn'); if (!st) return;
+  getKey().then(function (k) { if (!$('#keystat')) return; st.textContent = k ? 'Saved on your account (ends ' + k.slice(-4) + '). Your library, wishlist and friend comparisons use it.' : 'No key saved yet. Add one to see your games here.'; bt.textContent = k ? 'Change' : 'Add'; });
+}
+function keySheet() {
+  sheet('<h3 style="margin:0 0 6px">Steam Web API key</h3><div class="sub wrap" style="margin-bottom:10px">It lets SteamLite read your games, wishlist and friends. It stays encrypted on your SteamLite account.</div>' +
+    '<div class="row" style="cursor:default"><span class="ai">' + ic('external', 20) + '</span><div class="grow"><b>1. Get your key</b><div class="sub wrap">Open Steam\'s key page, sign in, type any website name (like steamlite) and copy the 32-letter key.</div></div><button class="btn sm ghost" id="kopen">Open</button></div>' +
+    '<div class="row" style="cursor:default"><span class="ai">' + ic('check', 20) + '</span><div class="grow"><b>2. Paste it here</b></div></div>' +
+    '<input class="in" id="kin" maxlength="32" placeholder="32-character key" autocomplete="off" autocapitalize="none" spellcheck="false" style="font-family:monospace;letter-spacing:.04em"><div class="sub wrap" id="kmsg" style="margin:6px 0 0;min-height:18px"></div>' +
+    '<button class="btn wide" style="margin-top:10px" id="ksave">Save key</button>');
+  $('#kopen').onclick = function () { N('openUrl', 'https://steamcommunity.com/dev/apikey'); };
+  $('#kin').oninput = function () { $('#kmsg').textContent = ''; };
+  $('#ksave').onclick = function () {
+    var k = $('#kin').value.trim(), msg = $('#kmsg');
+    if (!/^[0-9A-Fa-f]{32}$/.test(k)) { msg.style.color = 'var(--bad)'; msg.textContent = 'A key is exactly 32 letters and numbers (0-9, A-F).'; return; }
+    $('#ksave').disabled = true; $('#ksave').textContent = 'Checking with Steam...';
+    api('PUT', '/me/key', { key: k }).then(function (r) {
+      $('#ksave').disabled = false; $('#ksave').textContent = 'Save key';
+      if (r.error || r.ok === false) { msg.style.color = 'var(--bad)'; msg.textContent = r.error || 'Steam did not accept that key.'; return; }
+      S.key = k; S.games = null; S.wish = null; ls.del('c:games'); ls.del('c:wish'); hp('ok'); closeSheet(); toast('Key saved'); paintKeyCard();
+      if (S.tab === 'lib') renderLib();
+    });
+  };
+  setTimeout(function () { var e = $('#kin'); e && e.focus(); }, 350);
+}
+
 // ---------- me ----------
 function sw(id, on) { return '<label class="sw"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '><i></i></label>'; }
 function renderMe() {
@@ -432,11 +459,13 @@ function renderMe() {
     '<div class="card"><div class="sub">Your SteamLite code</div><div style="display:flex;align-items:center;gap:10px"><b style="font-size:1.3em;letter-spacing:.04em" class="grow">' + esc(m.code) + '</b><button class="btn sm ghost" id="cpc">' + ic('copy', 15) + ' Copy</button></div><div class="sub wrap">Friends type this to add you.</div></div>' +
     '<div class="card"><div class="sub" style="margin-bottom:6px">Bio</div><textarea class="in" id="bio" rows="2" maxlength="160" placeholder="Say something about yourself"></textarea><button class="btn sm" style="margin-top:8px" id="bios">Save bio</button></div>' +
     '<div class="sec">Look</div><div class="card"><div class="sub">Mode</div><div class="seg" style="margin:6px 0 12px" id="smode">' + [['auto', 'Auto'], ['dark', 'Dark'], ['light', 'Light']].map(function (x) { return '<button data-m="' + x[0] + '" class="' + (Look.mode === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</div><div class="sub">Text size</div><div class="seg" style="margin:6px 0 0" id="ssize">' + [[0.9, 'Small'], [1, 'Normal'], [1.12, 'Large'], [1.25, 'Huge']].map(function (x) { return '<button data-z="' + x[0] + '" class="' + (Look.size === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</div></div>' +
+    '<div class="sec">Steam connection</div><div class="card"><div class="opt" style="padding:0"><div class="grow"><b>Steam Web API key</b><div class="sub wrap" id="keystat">Checking...</div></div><button class="btn sm" id="keybtn">Change</button></div></div>' +
     '<div class="sec">Notifications and privacy</div><div class="card" id="ncheck"></div><div class="card"><div class="opt"><div class="grow"><b>Message notifications</b><div class="sub wrap">' + (push ? 'Instant. You get a notification the moment a message, friend request or reminder arrives, and you can reply from it.' : 'Waiting for instant notifications to connect. Until then, new messages show up within about 15 minutes.') + '</div></div>' + sw('tnot', ls.get('muteAll') !== '1') + '</div><div class="opt"><div class="grow"><b>Show what I am playing</b><div class="sub wrap">Friends see your online status and game.</div></div>' + sw('tplay', ls.get('sharePlay') !== '0') + '</div>' + '<div class="opt"><div class="grow"><b>Sale alerts</b><div class="sub wrap">Get a notification when a game on your wishlist goes on sale (20% off or more). Your wishlist is sent to SteamLite Online for this.</div></div>' + sw('tsale', ls.get('saleAlerts') === '1') + '</div>' + (canLock ? '<div class="opt"><div class="grow"><b>App lock</b><div class="sub wrap">Ask for your phone\'s fingerprint, face or PIN when you come back.</div></div>' + sw('tlock', ls.get('lock') === '1') + '</div>' : '') + '</div>' +
     (S.bk ? '<div class="card"><div class="sub wrap">Synced from your PC: ' + pcFavs().length + ' favourite game' + (pcFavs().length === 1 ? '' : 's') + ' and ' + Object.keys(S.bk.cols || {}).length + ' collection' + (Object.keys(S.bk.cols || {}).length === 1 ? '' : 's') + '. They show as filters in your Library.</div></div>' : '') + '<div class="card"><div class="opt" style="padding:0"><span class="ai">' + ic('info', 20) + '</span><div class="grow"><b>Home-screen widget</b><div class="sub wrap">Press and hold your home screen, tap Widgets, then pick SteamLite to see your unread messages.</div></div></div></div>' +
     '<button class="btn ghost wide" style="margin-bottom:10px" id="myp">' + ic('user', 17) + ' View my profile</button><button class="btn ghost wide" style="margin-bottom:10px" id="cku">' + ic('download', 17) + ' Check for updates</button><button class="btn bad wide" style="margin-bottom:10px" id="so">Sign out</button><button class="btn ghost wide" style="color:var(--bad)" id="del">Delete my SteamLite account</button><div class="sub" style="text-align:center;margin-top:14px">SteamLite Mobile ' + esc(CUR) + '</div></div>';
   api('GET', '/social/profile?uid=' + (S.me.uid || '')).then(function (p) { if ($('#bio') && p.bio && !$('#bio').value) $('#bio').value = p.bio; });
-  paintNotifCheck();
+  paintNotifCheck(); paintKeyCard();
+  $('#keybtn').onclick = keySheet;
   $('#cpc').onclick = function () { N('copy', m.code); toast('Copied'); };
   $('#bios').onclick = function () { api('POST', '/social/bio', { bio: $('#bio').value }).then(function (r) { toast(r.error || 'Saved'); }); };
   $('#myp').onclick = function () { openProfile(S.me.uid); };

@@ -54,7 +54,7 @@ final class Notify {
         if (MainActivity.foreground && !"test".equals(t0)) { sp.edit().putString("lastPushErr", "Skipped: the app was open, so it shows the message on screen instead.").apply(); return; }   // a test is shown even while the app is open
         channels(c);
         String t = String.valueOf(d.get("t")), title = d.get("title") == null ? "SteamLite" : d.get("title"), body = d.get("body") == null ? "" : d.get("body"), conv = d.get("conv");
-        if ("msg".equals(t) && conv != null && !conv.isEmpty()) { message(c, conv, title, d.get("from") == null ? title : d.get("from"), body, false); UnreadWidget.bump(c, title, body); return; }
+        if ("msg".equals(t) && conv != null && !conv.isEmpty()) { message(c, conv, title, d.get("sender") != null ? d.get("sender") : d.get("from") == null ? title : d.get("from"), body, false); UnreadWidget.bump(c, title, body); return; }
         String target = "react".equals(t) && conv != null ? conv : "deal".equals(t) ? "game:" + d.get("appid") : "#friends";
         int id = "friend".equals(t) ? 77 : "streak".equals(t) ? 78 : "deal".equals(t) ? 79 : ("react" + conv).hashCode();
         Notification.Builder b = builder(c, ACT).setSmallIcon(R.drawable.ic_stat).setContentTitle(title).setContentText(body).setStyle(new Notification.BigTextStyle().bigText(body))
