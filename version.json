@@ -1,5 +1,5 @@
 {
-    "version":  "1.0.0",
-    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.0.0/SteamLite-Mobile-1.0.0.apk",
-    "notes":  "First release: messages with photos and voice, friends, library and wishlist, game night, themes, notifications and more."
+    "version":  "1.0.1",
+    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.0.1/SteamLite-Mobile-1.0.1.apk",
+    "notes":  "Instant notifications with reply from the notification, game pages, line icons instead of emojis, home-screen widget, share to SteamLite, library filters and stats, smoother and bouncier animations, and no more flicker on refresh."
 }
