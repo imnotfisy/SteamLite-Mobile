@@ -1,7 +1,7 @@
 {
-    "version":  "1.2.1",
-    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.2.1/SteamLite-Mobile-1.2.1.apk",
-    "sha256":  "a92365ef593d1700d9d1ee8482a7a900272a8ccbb25d11cd8cc40de1cd1af668",
-    "size":  2980685,
-    "notes":  "Keep your play streak by messaging from your phone, friend streak bar and day-up animation, group pictures, archive chats, starred messages, undo send, scheduled messages, jump to first unread, chat colours and biometric chat lock, data saver, friend groups, status messages, backlog picker, game notes and achievement goals, free game alerts, public wishlist link, quiet-notifications tile, diagnostics, gentler message animations and a fix for the back gesture."
+    "version":  "1.2.2",
+    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.2.2/SteamLite-Mobile-1.2.2.apk",
+    "sha256":  "a3280df525e7a050ad8e49eee77c02af59de04a443f27cc38161002d8bff712c",
+    "size":  2981021,
+    "notes":  "Your play streak now stays in sync with your PC: it refreshes when you open the app and every minute, shows your streak restores and whether a broken streak can be restored, and the PC is told straight away when you message from your phone."
 }
