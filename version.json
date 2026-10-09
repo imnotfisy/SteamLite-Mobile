@@ -1,7 +1,7 @@
 {
-    "version":  "1.1.1",
-    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.1.1/SteamLite-Mobile-1.1.1.apk",
-    "sha256":  "f1fb482d2742b0657be97dcc1793a0b1171079e913aa269f72e2f22d1b54732a",
-    "size":  2921788,
-    "notes":  "You can now add or change your Steam Web API key from the Me tab. Message notifications now show the sender\u0027s name in group chats. Message notifications themselves were fixed on the server, so they work without an update. The app updates itself from here: tap Update when the banner appears."
+    "version":  "1.2.0",
+    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.2.0/SteamLite-Mobile-1.2.0.apk",
+    "sha256":  "00a93f097e7211a9e052f21cf341d0549f477a7666e70faf8e2b73e62985aa93",
+    "size":  2965970,
+    "notes":  "Big update: a Home page, a full Settings page, proper profile pages (banner, frame, title, showcase) shared with the PC app, Seen/Delivered, mute timers, Do Not Disturb, polls in group chats, photo gallery, forwarding, global search, offline send queue, compare libraries, achievement tracker, activity feed, recap image, events calendar, leaderboard, 6 new languages, bigger widgets and more. Pairs with SteamLite 9.3.0 on PC."
 }
