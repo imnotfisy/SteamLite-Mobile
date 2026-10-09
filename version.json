@@ -1,7 +1,7 @@
 {
-    "version":  "1.2.2",
-    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.2.2/SteamLite-Mobile-1.2.2.apk",
-    "sha256":  "a3280df525e7a050ad8e49eee77c02af59de04a443f27cc38161002d8bff712c",
-    "size":  2981021,
-    "notes":  "Your play streak now stays in sync with your PC: it refreshes when you open the app and every minute, shows your streak restores and whether a broken streak can be restored, and the PC is told straight away when you message from your phone."
+    "version":  "1.2.3",
+    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.2.3/SteamLite-Mobile-1.2.3.apk",
+    "sha256":  "d12a150936e49f67317243418034e6448368740ced34fd1adf1e0de6f4797d00",
+    "size":  2982785,
+    "notes":  "A new startup animation, calmer and more modern animations everywhere, and battery savings: the app now stops its timers and animations when it is not on screen, the open chat checks less often when quiet, and the background check runs less often."
 }
