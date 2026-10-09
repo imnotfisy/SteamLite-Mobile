@@ -38,9 +38,39 @@ function convSheet(id) {
   $('#sheet').onclick = function (e) {
     var a = e.target.closest('[data-a]'); if (!a) return; var k = a.dataset.a; closeSheet();
     if (k === 'pin') { var n = pinned ? pins.filter(function (x) { return x !== id; }) : pins.concat([id]).slice(-5); ls.set('pins', JSON.stringify(n)); renderMsgs(); toast(pinned ? 'Unpinned' : 'Pinned'); }
-    else if (k === 'mute') api('POST', '/social/mute', { conv: id, on: !c.muted }).then(function () { c.muted = !c.muted; renderMsgs(); toast(c.muted ? 'Muted' : 'Unmuted'); });
+    else if (k === 'mute') muteSheet(id, c.muted, function (m) { c.muted = m; renderMsgs(); });
     else openChat(id);
   };
+}
+// mute a chat for an hour, a day... or until you turn it back on
+function muteSheet(id, muted, done) {
+  if (muted) { api('POST', '/social/mute', { conv: id, on: false }).then(function () { toast('Unmuted'); if (done) done(false); }); return; }
+  sheet('<h3 style="margin:0 0 6px">Mute notifications</h3>' + [['1 hour', 1], ['8 hours', 8], ['24 hours', 24], ['Until I turn it back on', 0]].map(function (x) { return act('bellOff', x[0], 'data-h="' + x[1] + '"'); }).join(''));
+  $('#sheet').onclick = function (e) { var b = e.target.closest('[data-h]'); if (!b) return; closeSheet(); var h = +b.dataset.h; api('POST', '/social/mute', h ? { conv: id, on: true, hours: h } : { conv: id, on: true }).then(function () { toast(h ? 'Muted for ' + h + (h === 1 ? ' hour' : ' hours') : 'Muted'); if (done) done(true); }); };
+}
+// forward a message to another chat
+function forwardMsg(m) {
+  pickConv('Forward to...', function (cid) {
+    var d = m.data || {}, body = { conv: cid, text: m.text };
+    if (m.kind === 'game') body = { conv: cid, kind: 'game', data: d }; else if (m.kind === 'list') body = { conv: cid, kind: 'list', data: { id: d.id } }; else if (m.kind === 'image') body = { conv: cid, kind: 'image', text: m.text, data: { id: d.id, w: d.w, h: d.h } }; else if (m.kind === 'voice') body = { conv: cid, kind: 'voice', data: { id: d.id, ms: d.ms } }; else if (m.kind === 'gif') body = { conv: cid, kind: 'gif', data: d };
+    api('POST', '/social/send', body).then(function (r) { toast(r.error || 'Forwarded'); if (!r.error) hp('ok'); });
+  });
+}
+// group polls
+function pollHtml(m) {
+  var d = m.data, pl = m.poll || { counts: {}, mine: null, total: 0 };
+  return '<div class="pollc"><div class="name" style="white-space:normal">' + ic('chart', 15) + esc(d.q) + '</div>' + d.options.map(function (o, i) { var n = pl.counts[i] || 0, pct = pl.total ? Math.round(n / pl.total * 100) : 0; return '<button class="poll' + (pl.mine === i ? ' mine' : '') + '" data-gv="' + m.id + '|' + i + '"><span class="pf" style="width:' + pct + '%"></span><span class="pt">' + (pl.mine === i ? ic('check', 14) + ' ' : '') + esc(o) + '</span><span class="pp">' + n + '</span></button>'; }).join('') + '<div class="sub">' + pl.total + ' vote' + (pl.total === 1 ? '' : 's') + (pl.mine != null ? ' · tap another to change' : '') + '</div></div>';
+}
+function pollSheet() {
+  var opts = ['', ''];
+  var draw = function () {
+    sheet('<h3 style="margin:0 0 8px">Start a poll</h3><input class="in" id="pq" maxlength="100" placeholder="Question, like What do we play?">' + opts.map(function (o, i) { return '<input class="in po" data-i="' + i + '" maxlength="40" placeholder="Option ' + (i + 1) + '" value="' + esc(o) + '" style="margin-top:8px">'; }).join('') + (opts.length < 6 ? '<button class="btn ghost sm" id="padd" style="margin-top:8px">' + ic('plus', 14) + ' Add option</button>' : '') + '<button class="btn wide" id="pgo" style="margin-top:12px">Send poll</button>');
+    var q0 = pollSheet.q || ''; $('#pq').value = q0; $('#pq').oninput = function () { pollSheet.q = $('#pq').value; };
+    document.querySelectorAll('#sheet .po').forEach(function (i) { i.oninput = function () { opts[+i.dataset.i] = i.value; }; });
+    var pa = $('#padd'); if (pa) pa.onclick = function () { opts.push(''); draw(); };
+    $('#pgo').onclick = function () { var q = $('#pq').value.trim(), o = opts.map(function (x) { return x.trim(); }).filter(Boolean); if (q.length < 2 || o.length < 2) return toast('Add a question and at least two options.'); api('POST', '/social/gpoll', { conv: C.id, q: q, options: o }).then(function (r) { if (r.error) return toast(r.error); pollSheet.q = ''; closeSheet(); hp('ok'); loadConv(false); }); };
+  };
+  pollSheet.q = ''; draw();
 }
 function newGroup() {
   var fr = (S.ov && S.ov.friends) || [];
@@ -59,12 +89,13 @@ function linkify(t) {
 }
 function firstUrl(t) { var m = /https:\/\/[^\s<]+/.exec(t || ''); return m ? m[0].replace(/[.,;:!?)\]]+$/, '').replace(/&amp;/g, '&') : ''; }
 function wantPreview(url) {
-  if (UF[url] !== undefined || ufBusy >= 2) return; UF[url] = null; ufBusy++;
+  if (ls.get('linkPrev') === '0' || UF[url] !== undefined || ufBusy >= 2) return; UF[url] = null; ufBusy++;
   api('GET', '/social/unfurl?u=' + encodeURIComponent(url)).then(function (r) { ufBusy--; UF[url] = r && r.ok ? r : false; if (C.id) paintMsgs(false); });
 }
 document.addEventListener('click', function (e) {
   var a = e.target.closest('[data-url]'); if (a) { e.preventDefault(); N('openUrl', a.dataset.url.replace(/&amp;/g, '&')); return; }
   var b = e.target.closest('[data-buy]'); if (b) { e.stopPropagation(); N('openUrl', 'https://store.steampowered.com/app/' + b.dataset.buy); return; }
+  var gv = e.target.closest('[data-gv]'); if (gv) { e.stopPropagation(); var pp = gv.dataset.gv.split('|'); hp('tap'); api('POST', '/social/gvote', { msg: +pp[0], opt: +pp[1] }).then(function (r) { if (r.error) return toast(r.error); refreshAll(); }); return; }
   var gp = e.target.closest('[data-gp]'); if (gp) { e.stopPropagation(); openGame(+gp.dataset.gp); return; }
   var l = e.target.closest('[data-list]'); if (l) { e.stopPropagation(); openList(l.dataset.list); return; }
   var im = e.target.closest('[data-img]'); if (im) { viewImage(im.dataset.full || im.src); return; }
@@ -113,7 +144,7 @@ function loadConv(first) {
     if (r.error) { if (first && !C.info) { toast(r.error); closeChat(true); } return; }
     var fresh = r.messages || [];
     if (first || !C.info) { C.info = r; C.msgs = fresh; }
-    else { C.info.typing = r.typing; C.info.peerRead = r.peerRead; C.info.members = r.members; C.info.muted = r.muted; C.info.streak = r.streak; C.info.canSend = r.canSend; if (fresh.length) { var ids = {}; C.msgs.forEach(function (m) { ids[m.id] = 1; }); fresh.forEach(function (m) { if (!ids[m.id]) { C.msgs.push(m); C.newIds[m.id] = 1; } }); } }
+    else { C.info.typing = r.typing; C.info.peerRead = r.peerRead; C.info.peerLast = r.peerLast; C.info.members = r.members; C.info.muted = r.muted; C.info.streak = r.streak; C.info.canSend = r.canSend; if (fresh.length) { var ids = {}; C.msgs.forEach(function (m) { ids[m.id] = 1; }); fresh.forEach(function (m) { if (!ids[m.id]) { C.msgs.push(m); C.newIds[m.id] = 1; } }); } }
     C.msgs = C.msgs.filter(function (m) { return !m.tmp || !fresh.some(function (f) { return f.mine && f.at >= m.at - 5000 && f.text === m.text; }); });
     C.last = C.msgs.filter(function (m) { return !m.tmp; }).pop(); C.last = C.last ? C.last.id : 0;
     var atEnd = first || nearEnd(); paintHead(); paintMsgs(atEnd);
@@ -155,6 +186,7 @@ function paintMsgs(stick) {
     if (m.replyTo) body += '<div class="quote"><b>' + esc(m.replyTo.name) + '</b><br>' + esc(plain(m.replyTo.text)) + '</div>';
     if (m.kind === 'game' && m.data) body += '<div class="gcard"><div data-gp="' + (m.data.appid | 0) + '">' + gi(m.data.appid, m.data.name) + '</div><div><b data-gp="' + (m.data.appid | 0) + '">' + esc(m.data.name) + '</b>' + (m.data.hours ? '<div class="sub">' + m.data.hours + ' h played</div>' : '') + '<button class="btn sm" style="margin-top:6px;width:100%" data-buy="' + (m.data.appid | 0) + '">Buy on Steam</button></div></div>';
     else if (m.kind === 'list' && m.data) body += '<div class="gcard"><div><b class="lt">' + ic('list', 15) + esc(m.data.title) + '</b><div class="sub">Shared game list</div><button class="btn sm" style="margin-top:6px;width:100%" data-list="' + esc(m.data.id) + '">Open list</button></div></div>';
+    else if (m.kind === 'poll' && m.data) body += pollHtml(m);
     else if (m.kind === 'image') body += '<img class="mimg" data-img="1" src="' + (m.dataUrl || (MEDIA + esc(m.data && m.data.id))) + '" alt="Photo">' + (m.text && plain(m.text) !== 'Photo' ? '<div class="cap">' + linkify(m.text) + '</div>' : '');
     else if (m.kind === 'gif' && m.data) body += '<img class="mimg" data-img="1" src="' + esc(m.data.url) + '" alt="GIF">';
     else if (m.kind === 'voice') { var id = m.data && m.data.id; body += '<div class="vm" data-vid="' + esc(id) + '"><button data-vplay="' + esc(id) + '">' + (VID === id && VA && !VA.paused ? PAUSE : PLAY) + '</button><div class="vb"><i></i></div><span>' + fmtDur(m.data ? m.data.ms : 0) + '</span></div>'; }
@@ -163,9 +195,9 @@ function paintMsgs(stick) {
       if (u) { var p = UF[u]; if (p) body += '<a class="lp" data-url="' + esc(u) + '">' + (p.image ? '<img src="' + esc(p.image) + '" onerror="this.remove()">' : '') + '<div><b>' + esc(p.title) + '</b>' + (p.desc ? '<span>' + esc(p.desc.slice(0, 90)) + '</span>' : '') + '<span>' + esc(p.host) + '</span></div></a>'; else if (UF[u] === undefined) wantUrls.push(u); }
     }
     var rx = (m.reactions || []).length ? '<div class="react">' + m.reactions.map(function (r) { return '<span class="' + (r.me ? 'me' : '') + '">' + r.e + ' ' + r.n + '</span>'; }).join('') + '</div>' : '';
-    h += '<div class="' + cls + '" data-mid="' + (m.tmp ? '' : m.id) + '">' + (gap && !m.mine && C.info && C.info.kind === 'group' ? '<div class="who">' + esc(m.name) + '</div>' : '') + (m.pinned ? '<span class="pm">' + ic('pin', 12) + '</span>' : '') + body + rx + (cls.indexOf('big') < 0 ? '<div class="t">' + (m.tmp ? 'Sending...' : new Date(m.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + (m.edited ? ' · edited' : '')) + '</div>' : '') + '</div>';
+    h += '<div class="' + cls + '" data-mid="' + (m.tmp ? '' : m.id) + '">' + (gap && !m.mine && C.info && C.info.kind === 'group' ? '<div class="who">' + esc(NICKS()[m.uid] || m.name) + '</div>' : '') + (m.pinned ? '<span class="pm">' + ic('pin', 12) + '</span>' : '') + body + rx + (cls.indexOf('big') < 0 ? '<div class="t">' + (m.tmp ? (m.queued ? 'Waiting for a connection' : 'Sending...') : new Date(m.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + (m.edited ? ' · edited' : '')) + '</div>' : '') + '</div>';
   });
-  if (C.info && C.info.kind === 'dm' && C.msgs.length) { var lastMine = C.msgs.filter(function (m) { return m.mine && !m.tmp; }).pop(); if (lastMine && C.info.peerRead >= lastMine.id) h += '<div class="sub seen">Seen</div>'; }
+  if (C.info && C.info.kind === 'dm' && C.msgs.length) { var lastAny = C.msgs.filter(function (m) { return m.mine; }).pop(); if (lastAny) { var st = lastAny.tmp ? '' : C.info.peerRead >= lastAny.id ? 'Seen' : (C.info.peerLast || 0) >= lastAny.at ? 'Delivered' : 'Sent'; if (st) h += '<div class="sub seen' + (st === 'Seen' ? ' on' : '') + '">' + st + '</div>'; } }
   var changed = setHtml(box, h); if (changed && stick) box.scrollTop = box.scrollHeight;
   C.newIds = {}; wantUrls.slice(-3).forEach(wantPreview);
 }
@@ -199,8 +231,8 @@ function buildComposer() {
   $('#cat').onclick = attachMenu;
 }
 function attachMenu() {
-  sheet(act('image', 'Photo', 'data-a="photo"') + (S.gifOk ? act('gif', 'GIF', 'data-a="gif"') : '') + act('gamepad', 'Share a game', 'data-a="game"') + act('list', 'Share a game list', 'data-a="list"') + act('zap', 'Quick replies', 'data-a="qr"'));
-  $('#sheet').onclick = function (e) { var a = e.target.closest('[data-a]'); if (!a) return; var k = a.dataset.a; closeSheet(); if (k === 'photo') pickPhoto(); else if (k === 'gif') gifPicker(); else if (k === 'game') shareGamePick(C.id); else if (k === 'list') shareListPick(C.id); else quickReplies(); };
+  sheet(act('image', 'Photo', 'data-a="photo"') + (S.gifOk ? act('gif', 'GIF', 'data-a="gif"') : '') + act('gamepad', 'Share a game', 'data-a="game"') + act('list', 'Share a game list', 'data-a="list"') + (C.info && C.info.kind === 'group' ? act('chart', 'Start a poll', 'data-a="poll"') : '') + act('zap', 'Quick replies', 'data-a="qr"'));
+  $('#sheet').onclick = function (e) { var a = e.target.closest('[data-a]'); if (!a) return; var k = a.dataset.a; closeSheet(); if (k === 'photo') pickPhoto(); else if (k === 'gif') gifPicker(); else if (k === 'game') shareGamePick(C.id); else if (k === 'list') shareListPick(C.id); else if (k === 'poll') pollSheet(); else quickReplies(); };
 }
 function gifPicker() {
   sheet('<input class="in" id="gq3" placeholder="Search GIFs" autocomplete="off"><div id="gr3" class="grid gifs" style="margin-top:10px">' + skel(4, true) + '</div>');
@@ -222,11 +254,22 @@ function sendMsg() {
   inp.value = ''; inp.style.height = 'auto'; ls.del('draft:' + C.id); $('#csend').innerHTML = MICI; $('#csend').dataset.m = 'm'; hp('tap');
   var rep = C.reply ? C.reply.id : 0; setReply(null); sendRaw({ text: text, reply: rep || undefined });
 }
+var OUTQ = (function () { try { return JSON.parse(ls.get('outq') || '[]'); } catch (e) { return []; } })(), flushing = false;
+function saveQ() { ls.set('outq', JSON.stringify(OUTQ.slice(-30))); }
+function flushQueue() {
+  if (flushing || !OUTQ.length || S.offline) return; flushing = true; var it = OUTQ[0];
+  api('POST', '/social/send', Object.assign({ conv: it.conv }, it.body)).then(function (r) {
+    flushing = false; if (r.http === 0) return; OUTQ.shift(); saveQ();
+    if (C.id === it.conv) { C.msgs = C.msgs.filter(function (m) { return !(m.queued && m.at === it.at); }); loadConv(false); }
+    if (!r.error) toast('A message that was waiting has been sent'); flushQueue();
+  });
+}
 function sendRaw(body, tmpExtra) {
   var tmp = Object.assign({ id: 1e15 + Date.now() + Math.random(), uid: S.me.uid, name: S.me.name, text: body.text || '', kind: body.kind || 'text', at: Date.now(), mine: true, reactions: [], replyTo: null, tmp: 1 }, tmpExtra || {});
   C.msgs.push(tmp); C.newIds[tmp.id] = 1; paintMsgs(true);
   var id = C.id;
   return api('POST', '/social/send', Object.assign({ conv: id }, body)).then(function (r) {
+    if (r.http === 0 && (!body.kind || body.kind === 'text')) { OUTQ.push({ conv: id, body: body, at: tmp.at }); saveQ(); tmp.queued = true; if (id === C.id) paintMsgs(false); toast('No connection. It will send when you are back online.'); return r; }
     if (id !== C.id) return r;
     C.msgs = C.msgs.filter(function (m) { return m !== tmp; });
     if (r.error) { toast(r.error); paintMsgs(false); } else { hp('ok'); loadConv(false); }
@@ -288,13 +331,13 @@ function endRec(cancel) {
 // ---------- message menu, chat menu, search ----------
 function msgMenu(id) {
   var m = C.msgs.filter(function (x) { return x.id === id; })[0]; if (!m || m.tmp) return;
-  sheet('<div class="emo">' + QUICK.map(function (e) { return '<button data-e="' + e + '">' + e + '</button>'; }).join('') + '</div>' + act('reply', 'Reply', 'data-a="reply"') + (m.kind === 'text' ? act('copy', 'Copy text', 'data-a="copy"') : '') + act('pin', m.pinned ? 'Unpin' : 'Pin', 'data-a="pin"') + (m.mine && m.kind === 'text' ? act('edit', 'Edit', 'data-a="edit"') : '') + (m.mine ? act('trash', 'Delete', 'data-a="del"', 'bad') : act('flag', 'Report', 'data-a="rep"', 'bad')));
+  sheet('<div class="emo">' + QUICK.map(function (e) { return '<button data-e="' + e + '">' + e + '</button>'; }).join('') + '</div>' + act('reply', 'Reply', 'data-a="reply"') + (m.kind !== 'poll' ? act('share', 'Forward', 'data-a="fwd"') : '') + (m.kind === 'text' ? act('copy', 'Copy text', 'data-a="copy"') : '') + act('pin', m.pinned ? 'Unpin' : 'Pin', 'data-a="pin"') + (m.mine && m.kind === 'text' ? act('edit', 'Edit', 'data-a="edit"') : '') + (m.mine ? act('trash', 'Delete', 'data-a="del"', 'bad') : act('flag', 'Report', 'data-a="rep"', 'bad')));
   $('#sheet').onclick = function (e) {
     var em = e.target.closest('[data-e]'), a = e.target.closest('[data-a]');
     if (em) { var mine = (m.reactions.filter(function (r) { return r.e === em.dataset.e && r.me; }).length > 0); closeSheet(); hp('tap'); api('POST', '/social/react', { msg: id, emoji: em.dataset.e, on: !mine }).then(function (r) { if (r.error) toast(r.error); refreshAll(); }); }
     else if (a) {
       closeSheet(); var k = a.dataset.a;
-      if (k === 'reply') setReply(m);
+      if (k === 'reply') setReply(m); else if (k === 'fwd') forwardMsg(m);
       else if (k === 'copy') { N('copy', m.text); toast('Copied'); }
       else if (k === 'pin') api('POST', '/social/pin', { id: id, on: !m.pinned }).then(function (r) { if (r.error) toast(r.error); refreshAll(); });
       else if (k === 'edit') { var t = prompt('Edit message', m.text); if (t && t.trim()) api('POST', '/social/edit', { id: id, text: t.trim() }).then(function (r) { if (r.error) toast(r.error); refreshAll(); }); }
@@ -305,13 +348,14 @@ function msgMenu(id) {
 }
 function chatMenu() {
   var i = C.info || {};
-  sheet((i.kind === 'dm' && i.peerUid ? act('user', 'View profile', 'data-a="prof"') : '') + (i.kind === 'group' ? act('users', 'Members and group settings', 'data-a="members"') : '') + act('search', 'Search messages', 'data-a="search"') + act('pin', 'Pinned messages', 'data-a="pins"') + act(i.muted ? 'bell' : 'bellOff', i.muted ? 'Unmute chat' : 'Mute chat', 'data-a="mute"'));
+  sheet((i.kind === 'dm' && i.peerUid ? act('user', 'View profile', 'data-a="prof"') : '') + (i.kind === 'group' ? act('users', 'Members and group settings', 'data-a="members"') : '') + act('search', 'Search messages', 'data-a="search"') + act('pin', 'Pinned messages', 'data-a="pins"') + act('image', 'Photos in this chat', 'data-a="gal"') + act(i.muted ? 'bell' : 'bellOff', i.muted ? 'Unmute chat' : 'Mute chat', 'data-a="mute"'));
   $('#sheet').onclick = function (e) {
     var a = e.target.closest('[data-a]'); if (!a) return; var k = a.dataset.a; closeSheet();
     if (k === 'prof') openProfile(i.peerUid);
     else if (k === 'members') groupSheet();
     else if (k === 'search') searchSheet();
-    else if (k === 'mute') api('POST', '/social/mute', { conv: C.id, on: !i.muted }).then(function () { C.info.muted = !i.muted; toast(i.muted ? 'Unmuted' : 'Muted'); });
+    else if (k === 'mute') muteSheet(C.id, i.muted, function (m) { C.info.muted = m; });
+    else if (k === 'gal') openGallery(C.id);
     else if (k === 'pins') { sheet('<h3 style="margin:0 0 8px">Pinned</h3>' + ((i.pins || []).length ? i.pins.map(function (p) { return '<button class="act" data-j="' + p.id + '"><span><b>' + esc(p.name) + '</b><br>' + esc(plain(p.text)) + '</span></button>'; }).join('') : '<div class="empty">Nothing pinned.</div>')); jumpHandler(); }
   };
 }

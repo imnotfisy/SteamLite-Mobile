@@ -38,6 +38,7 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -341,6 +342,44 @@ public void askNotif() {
         /** Android's page where the person lets SteamLite install updates. */
         @JavascriptInterface
         public void openInstallSettings() { ui.post(() -> { try { startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()))); } catch (Exception e) { openNotifSettingsNow(); } }); }
+
+        /** Which kinds of notification are wanted (JSON like {"msg":true,"deal":false}). */
+        @JavascriptInterface
+        public void setNotifTypes(String json) { sp.edit().putString("ntypes", json == null ? "{}" : json).apply(); }
+
+        /** Do Not Disturb: notifications arrive silently between these times (minutes after midnight). */
+        @JavascriptInterface
+        public void setDnd(boolean on, int fromMin, int toMin) { sp.edit().putBoolean("dndOn", on).putInt("dndFrom", fromMin).putInt("dndTo", toMin).apply(); }
+
+        /** The friends widget: how many are online and a few names (one per line). */
+        @JavascriptInterface
+        public void setFriendsWidget(int online, String names) { FriendsWidget.set(MainActivity.this, online, names == null ? "" : names); }
+
+        /** Saves a picture (a web address or a data: picture) into the phone's Pictures/SteamLite folder. */
+        @JavascriptInterface
+        public void saveImage(final String src, final String name) {
+            pool.execute(() -> {
+                String msg = "Could not save the picture.";
+                try {
+                    byte[] data; String mime = "image/png";
+                    if (src.startsWith("data:")) { int c = src.indexOf(','); String head = src.substring(5, c); mime = head.contains(";") ? head.substring(0, head.indexOf(';')) : head; data = Base64.decode(src.substring(c + 1), Base64.DEFAULT); }
+                    else {
+                        java.net.URL u = new java.net.URL(src); String h = u.getHost();
+                        if (!"https".equals(u.getProtocol()) || !(h.endsWith(".workers.dev") || h.endsWith(".tenor.com") || h.equals("tenor.com") || h.endsWith("steamstatic.com"))) throw new Exception("not allowed");
+                        java.net.HttpURLConnection cn = (java.net.HttpURLConnection) u.openConnection(); cn.setConnectTimeout(15000); cn.setReadTimeout(30000);
+                        mime = cn.getContentType() == null ? "image/jpeg" : cn.getContentType().split(";")[0]; InputStream in = cn.getInputStream(); ByteArrayOutputStream bo = new ByteArrayOutputStream(); byte[] buf = new byte[16384]; int n; while ((n = in.read(buf)) > 0 && bo.size() < 12 * 1024 * 1024) bo.write(buf, 0, n); in.close(); data = bo.toByteArray();
+                    }
+                    String ext = mime.contains("png") ? "png" : mime.contains("gif") ? "gif" : mime.contains("webp") ? "webp" : "jpg", fname = (name == null || name.isEmpty() ? "steamlite" : name.replaceAll("[^A-Za-z0-9_-]", "")) + "-" + System.currentTimeMillis() + "." + ext;
+                    if (Build.VERSION.SDK_INT >= 29) {
+                        android.content.ContentValues cv = new android.content.ContentValues(); cv.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, fname); cv.put(android.provider.MediaStore.Images.Media.MIME_TYPE, mime); cv.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/SteamLite");
+                        Uri uri = getContentResolver().insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv); java.io.OutputStream os = getContentResolver().openOutputStream(uri); os.write(data); os.close(); msg = "Saved to Pictures/SteamLite";
+                    } else {
+                        File dir = new File(getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES), "SteamLite"); dir.mkdirs(); FileOutputStream fo = new FileOutputStream(new File(dir, fname)); fo.write(data); fo.close(); msg = "Saved to the app's Pictures folder";
+                    }
+                } catch (Exception e) { }
+                final String m = msg; ui.post(() -> android.widget.Toast.makeText(MainActivity.this, m, android.widget.Toast.LENGTH_SHORT).show());
+            });
+        }
 
         @JavascriptInterface
         public void repush() { ui.post(() -> Push.start(MainActivity.this)); }

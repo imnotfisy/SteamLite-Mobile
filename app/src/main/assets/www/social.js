@@ -9,14 +9,14 @@ function renderFriends() {
   if (o.incoming.length) h += '<div class="sec">Requests</div>' + o.incoming.map(function (f) { return '<div class="row" data-f="r' + f.uid + '"><div class="av"' + avStyle(f.avatar) + '></div><div class="grow name">' + nameHtml(f) + '</div><button class="btn sm" data-acc="' + f.uid + '">Accept</button><button class="btn sm ghost" data-dec="' + f.uid + '">' + ic('x', 15) + '</button></div>'; }).join('');
   h += '<div class="sec">Play together</div><button class="btn ghost wide" id="gnight">' + ic('dice', 18) + ' What should we play?</button>';
   h += '<div class="sec">Challenges</div><div id="chals">' + skel(1) + '</div><button class="btn ghost sm" id="newc" style="margin-top:6px">' + ic('trophy', 15) + ' Start a challenge</button>';
-  var on = o.friends.filter(function (f) { return f.online; }), off = o.friends.filter(function (f) { return !f.online; });
-  function row(f) { return '<div class="row" data-f="' + f.uid + '"><div class="av"' + avStyle(f.avatar) + '><i class="dot ' + (f.playing ? 'play' : f.online ? 'on' : '') + '"></i></div><div class="grow"><div class="name">' + nameHtml(f) + (f.streak ? ' <span class="fl sub">' + ic('flame', 13) + f.streak + '</span>' : '') + '</div><div class="sub">' + (f.playing ? 'Playing ' + esc(f.playing.name) : f.online ? 'Online' : 'Offline') + '</div></div></div>'; }
+  var on = o.friends.filter(function (f) { return f.online; }), off = o.friends.filter(function (f) { return !f.online; }), fv = FAVF(), favFirst = function (a, b) { return (fv.indexOf(b.uid) >= 0 ? 1 : 0) - (fv.indexOf(a.uid) >= 0 ? 1 : 0); }; on.sort(favFirst); off.sort(favFirst);
+  function row(f) { return '<div class="row" data-f="' + f.uid + '"><div class="av"' + avStyle(f.avatar) + '><i class="dot ' + (f.playing ? 'play' : f.online ? 'on' : '') + '"></i></div><div class="grow"><div class="name">' + (fv.indexOf(f.uid) >= 0 ? '<span class="mi gold">' + ic('star', 13, true) + '</span>' : '') + nameHtml(f) + (f.streak ? ' <span class="fl sub">' + ic('flame', 13) + f.streak + '</span>' : '') + '</div><div class="sub">' + (f.playing ? 'Playing ' + esc(f.playing.name) : f.online ? 'Online' : 'Offline') + '</div></div></div>'; }
   h += '<div class="sec">Online · ' + on.length + '</div>' + (on.map(row).join('') || '<div class="sub">Nobody online right now.</div>') + '<div class="sec">Offline · ' + off.length + '</div>' + off.map(row).join('');
   if (o.outgoing.length) h += '<div class="sec">Sent requests</div>' + o.outgoing.map(function (f) { return '<div class="row"><div class="av sm"' + avStyle(f.avatar) + '></div><div class="grow name">' + nameHtml(f) + '</div><span class="sub">Pending</span></div>'; }).join('');
   var changed = setHtml(v, h + '</div>');
   v.onclick = function (e) {
     var a = e.target.closest('[data-acc]'), d = e.target.closest('[data-dec]'), f = e.target.closest('[data-f]');
-    if (a) respond(a.dataset.acc, true); else if (d) respond(d.dataset.dec, false); else if (f && !/^r/.test(f.dataset.f)) friendSheet(f.dataset.f);
+    if (a) respond(a.dataset.acc, true); else if (d) respond(d.dataset.dec, false); else if (f && !/^r/.test(f.dataset.f)) openProfile(f.dataset.f);
   };
   if (changed) { $('#addf').onclick = addFriend; $('#newc').onclick = newChallenge; $('#gnight').onclick = gameNight; }
   loadChals();
@@ -234,7 +234,7 @@ function loadBackup(force) {
   api('GET', '/backup').then(function (r) {
     var d = r && r.backup && r.backup.data; if (!d) return;
     var cols = {}; if (d.collections && typeof d.collections === 'object') Object.keys(d.collections).slice(0, 12).forEach(function (k) { if (Array.isArray(d.collections[k]) && d.collections[k].length) cols[k] = d.collections[k].map(Number).filter(Boolean); });
-    S.bk = { at: Date.now(), fav: (Array.isArray(d.favorites) ? d.favorites : []).map(Number).filter(Boolean), cols: cols }; cset('bk', S.bk);
+    S.bk = { at: Date.now(), fav: (Array.isArray(d.favorites) ? d.favorites : []).map(Number).filter(Boolean), cols: cols, unl: (d.metaAchievements && typeof d.metaAchievements === 'object') ? d.metaAchievements : {}, cos: (d.cosmetics && typeof d.cosmetics === 'object') ? d.cosmetics : {}, prestige: (d.prestige && d.prestige.count) || 0 }; cset('bk', S.bk);
     if (S.tab === 'lib' && LIB.tab === 'games' && $('#gg')) paintGames();
   });
 }
@@ -307,8 +307,9 @@ function libStats() {
 function renderThemes(refresh) {
   var v = $('#view');
   if (!refresh) {
-    v.__h = null; v.innerHTML = '<div class="hdr"><h1>Themes</h1><button class="btn sm" id="tmk">' + ic('plus', 15) + ' Create</button><button class="btn sm ghost" id="trs">Reset</button></div><div class="seg" id="tseg">' + [['official', 'Official'], ['top', 'Community'], ['new', 'New'], ['downloads', 'Most used'], ['mine', 'Mine']].map(function (x) { return '<button data-s="' + x[0] + '" class="' + (S.tsort === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</div><div class="pad" id="tl">' + skel(4, true) + '</div>';
+    v.__h = null; v.innerHTML = '<div class="hdr"><button class="btn ghost sm" id="thback" aria-label="Back">' + ic('back', 18) + '</button><h1>Themes</h1><button class="btn sm" id="tmk">' + ic('plus', 15) + ' Create</button><button class="btn sm ghost" id="trs">Reset</button></div><div class="seg" id="tseg">' + [['official', 'Official'], ['top', 'Community'], ['new', 'New'], ['downloads', 'Most used'], ['mine', 'Mine']].map(function (x) { return '<button data-s="' + x[0] + '" class="' + (S.tsort === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</div><div class="pad" id="tl">' + skel(4, true) + '</div>';
     $('#trs').onclick = function () { Look.setTheme(null); toast('Back to the default look'); };
+    $('#thback').onclick = function () { go(S.prev || 'home'); };
     $('#tmk').onclick = themeMaker;
     $('#tseg').onclick = function (e) { var b = e.target.closest('button'); if (b) { S.tsort = b.dataset.s; S.tsortSet = true; ls.set('tsort', S.tsort); hp('tap'); renderThemes(); } };
   }

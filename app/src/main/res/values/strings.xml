@@ -1,4 +1,11 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="widget_desc">Your unread SteamLite messages</string>
+    <string name="widget_friends_desc">Friends who are online right now</string>
+    <string name="sc_messages">Messages</string>
+    <string name="sc_messages_long">Open your messages</string>
+    <string name="sc_library">Library</string>
+    <string name="sc_library_long">Open your game library</string>
+    <string name="sc_add">Add friend</string>
+    <string name="sc_add_long">Add a friend with their code</string>
 </resources>

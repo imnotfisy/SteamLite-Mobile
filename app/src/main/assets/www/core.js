@@ -163,7 +163,7 @@ if (window.matchMedia) try { matchMedia('(prefers-color-scheme: light)').addEven
 function sheet(html) { $('#sheet').innerHTML = html; $('#sheet').onclick = null; $('#sheetbg').classList.add('on'); requestAnimationFrame(function () { $('#sheet').classList.add('open'); }); }
 function closeSheet() { $('#sheet').classList.remove('open'); $('#sheetbg').classList.remove('on'); $('#sheet').onclick = null; }
 $('#sheetbg').onclick = closeSheet;
-function viewImage(src) { var v = $('#viewer'); v.innerHTML = '<img src="' + esc(src) + '">'; v.classList.add('on'); v.onclick = function () { v.classList.remove('on'); }; }
+function viewImage(src) { var v = $('#viewer'); v.innerHTML = '<img src="' + esc(src) + '"><button class="vsave" id="vsave" aria-label="Save to gallery">' + ic('download', 20) + '</button><button class="vclose" aria-label="Close">' + ic('x', 20) + '</button>'; v.classList.add('on'); v.onclick = function (e) { if (e.target.closest('#vsave')) { e.stopPropagation(); N('saveImage', src, 'steamlite'); toast('Saved to your Pictures'); return; } v.classList.remove('on'); }; }
 
 // ---------- game covers: same fallbacks as the PC app ----------
 // 1 classic CDN  2 second CDN host  3 Steam store API (newer games use a hashed path)  4 capsule  5 hero  6 coloured tile
@@ -221,18 +221,19 @@ function showUpdate() {
 // in-app update: download inside the app, then Android asks you to confirm the install
 var UT = 0;
 function startInAppUpdate() {
-  var u = UPD; if (!u) return; N('updReset'); N('updStart', u.downloadUrl, u.sha256 || '', +(u.size || 0)); hp('ok'); trackUpdate();
+  var u = UPD; if (!u) return; var ue = $('#upd'); if (ue) ue.setAttribute('data-k', ''); N('updReset'); N('updStart', u.downloadUrl, u.sha256 || '', +(u.size || 0)); hp('ok'); trackUpdate();
 }
 function trackUpdate() {
   clearInterval(UT); var el = $('#upd'), u = UPD || {}, force = el.className === 'force';
-  var bar = function (inner, extra) { el.className = force ? 'force' : ''; el.innerHTML = '<div class="ub">' + (force ? '<div class="logo" style="margin:0 auto 14px">' + LOGO + '</div>' : '') + '<div style="flex:1">' + inner + '</div>' + (extra || '') + '</div>'; };
+  var bar = function (inner, extra, key) { if (key && el.getAttribute('data-k') === key) return true; el.setAttribute('data-k', key || ''); el.className = force ? 'force' : ''; el.innerHTML = '<div class="ub">' + (force ? '<div class="logo" style="margin:0 auto 14px">' + LOGO + '</div>' : '') + '<div style="flex:1">' + inner + '</div>' + (extra || '') + '</div>'; };
   var tick2 = function () {
     var s = {}; try { s = JSON.parse(N('updState') || '{}'); } catch (e) { }
-    if (s.state === 'downloading') bar('Downloading ' + esc(u.version || '') + '... ' + (s.pct || 0) + '%<div class="upbar"><i style="width:' + (s.pct || 0) + '%"></i></div>');
-    else if (s.state === 'installing') bar('Almost there. Confirm the install on the Android screen.');
-    else if (s.state === 'needperm') bar('Android needs your OK before SteamLite can update itself. Allow it, then come back.', '<button id="upperm">Allow</button>');
+    if (s.state === 'downloading' && el.getAttribute('data-k') === 'dl' && $('#upt')) { $('#upt').textContent = 'Downloading ' + (u.version || '') + '... ' + (s.pct || 0) + '%'; $('.upbar i', el).style.width = (s.pct || 0) + '%'; }
+    else if (s.state === 'downloading') bar('<span id="upt">Downloading ' + esc(u.version || '') + '... ' + (s.pct || 0) + '%</span><div class="upbar"><i style="width:' + (s.pct || 0) + '%"></i></div>', '', 'dl');
+    else if (s.state === 'installing') bar('Almost there. Confirm the install on the Android screen.', '', 'inst');
+    else if (s.state === 'needperm') bar('Android needs your OK before SteamLite can update itself. Allow it, then come back.', '<button id="upperm">Allow</button>', 'perm');
     else if (s.state === 'error') { clearInterval(UT); bar(esc(s.error || 'The update did not work.'), '<button id="upagain">Try again</button><button id="uppage" aria-label="Open the download page">Page</button>'); }
-    else if (s.state === 'done') { clearInterval(UT); bar('Updated! SteamLite is restarting.'); }
+    else if (s.state === 'done') { clearInterval(UT); bar('Updated! SteamLite is restarting.', '', 'done'); }
     else if (s.state === 'idle') { clearInterval(UT); showUpdate(); return; }
     var p = $('#upperm'); if (p) p.onclick = function () { N('openInstallSettings'); };
     var a = $('#upagain'); if (a) a.onclick = startInAppUpdate; var g = $('#uppage'); if (g) g.onclick = function () { N('openUrl', u.downloadUrl); };
@@ -292,6 +293,7 @@ function tick() {
   api('GET', '/social/overview').then(function (o) {
     if (!o.friends) return; S.ov = o; S.me.uid = o.me.uid; cset('ov', o); badge();
     var u1 = (o.convs || []).filter(function (c) { return c.unread > 0; })[0]; N('setWidget', o.unread || 0, u1 ? u1.name : '', u1 && u1.last ? plain(u1.last.text) : '');
+    var onl = (o.friends || []).filter(function (f) { return f.online; }); N('setFriendsWidget', onl.length, onl.slice(0, 4).map(function (f) { return (NICKS()[f.uid] || f.name).split(' ')[0] + (f.playing ? ' (' + f.playing.name + ')' : ''); }).join('\n'));
     if (S.tab === 'msgs' && !(C && C.id && !wide())) renderMsgs();
     if (S.tab === 'friends') renderFriends();
   });
