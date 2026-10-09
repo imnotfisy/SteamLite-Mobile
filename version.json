@@ -1,7 +1,7 @@
 {
-    "version":  "1.2.0",
-    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.2.0/SteamLite-Mobile-1.2.0.apk",
-    "sha256":  "00a93f097e7211a9e052f21cf341d0549f477a7666e70faf8e2b73e62985aa93",
-    "size":  2965970,
-    "notes":  "Big update: a Home page, a full Settings page, proper profile pages (banner, frame, title, showcase) shared with the PC app, Seen/Delivered, mute timers, Do Not Disturb, polls in group chats, photo gallery, forwarding, global search, offline send queue, compare libraries, achievement tracker, activity feed, recap image, events calendar, leaderboard, 6 new languages, bigger widgets and more. Pairs with SteamLite 9.3.0 on PC."
+    "version":  "1.2.1",
+    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.2.1/SteamLite-Mobile-1.2.1.apk",
+    "sha256":  "a92365ef593d1700d9d1ee8482a7a900272a8ccbb25d11cd8cc40de1cd1af668",
+    "size":  2980685,
+    "notes":  "Keep your play streak by messaging from your phone, friend streak bar and day-up animation, group pictures, archive chats, starred messages, undo send, scheduled messages, jump to first unread, chat colours and biometric chat lock, data saver, friend groups, status messages, backlog picker, game notes and achievement goals, free game alerts, public wishlist link, quiet-notifications tile, diagnostics, gentler message animations and a fix for the back gesture."
 }
