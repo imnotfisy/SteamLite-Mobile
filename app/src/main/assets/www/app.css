@@ -501,3 +501,23 @@ button.card:active,a.card:active{transform:scale(.985)!important}
 .sgp{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px}.sgp s{opacity:.7}
 .chip.off{background:#4c8b2b;color:#fff}
 .fbtn{display:flex;align-items:center;gap:10px;width:100%;border:0;color:var(--text)}
+
+/* 1.3.1: folder cards fill their column and the cover mosaic keeps its shape */
+.fgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.fcard{width:100%;min-width:0;padding:8px 8px 10px;gap:6px;overflow:hidden}
+.fmos{aspect-ratio:16/9;grid-template-rows:1fr 1fr;width:100%}
+.fmos img,.fmos i{height:100%;aspect-ratio:auto;min-height:0}
+.fcard .fn{white-space:normal;line-height:1.25;align-items:flex-start;overflow-wrap:anywhere}
+.fcard .fn svg{flex:none;margin-top:2px}
+.fcard .sub{white-space:normal;overflow:visible;text-overflow:clip}
+
+/* 1.4.0 */
+.trkb{flex:none;background:none;border:0;color:var(--mut);padding:8px;border-radius:50%}.trkb.on{color:var(--acc)}
+.srow2{display:flex;gap:8px;margin:8px 0}.srow2 select{flex:1;width:auto}
+#stags{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;margin:6px -16px 0;padding:0 16px}#stags button{flex:none}
+#selbar{position:fixed;left:12px;right:12px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:40;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:8px 10px;box-shadow:0 8px 28px rgba(0,0,0,.4);animation:rise .25s var(--smooth) both}
+.game.sel{outline:2px solid var(--acc);outline-offset:-2px;border-radius:12px}.game.sel::after{content:"";position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:var(--acc) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center/14px no-repeat}
+.game{position:relative}
+.card.pccard{display:flex;align-items:center;gap:12px;width:100%;margin:10px 0;border:0;color:var(--text)}.pcdot{width:10px;height:10px;border-radius:50%;background:var(--mut);flex:none}.pccard.on .pcdot{background:var(--ok,#22c55e);box-shadow:0 0 0 4px rgba(34,197,94,.2)}
+.qrbox{display:grid;place-items:center;background:#fff;border-radius:16px;padding:12px;max-width:260px;margin:0 auto}.qrbox img{width:100%;image-rendering:pixelated}
+.palert{display:flex;align-items:center;gap:10px}

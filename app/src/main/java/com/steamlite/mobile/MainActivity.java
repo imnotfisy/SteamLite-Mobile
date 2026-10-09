@@ -369,6 +369,66 @@ public void askNotif() {
 
         /** The friends widget: how many are online and a few names (one per line). */
         @JavascriptInterface
+        public void setStreakWidget(int days, boolean done) { StreakWidget.set(MainActivity.this, days, done); }
+
+        /** Shares plain text (a chat export) through Android's share sheet: save to Files, send by email... */
+        @JavascriptInterface
+        public void shareText(String title, String text) {
+            final String t = text == null ? "" : (text.length() > 400000 ? text.substring(0, 400000) : text);
+            ui.post(() -> { try { Intent i = new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, title).putExtra(Intent.EXTRA_TEXT, t); startActivity(Intent.createChooser(i, title)); } catch (Exception e) { } });
+        }
+
+        /** A QR picture (as a data: web address) for the given text. */
+        @JavascriptInterface
+        public String qrPng(String text) {
+            try {
+                java.util.Map<com.google.zxing.EncodeHintType, Object> hints = new java.util.HashMap<>(); hints.put(com.google.zxing.EncodeHintType.MARGIN, 1);
+                com.google.zxing.common.BitMatrix m = new com.google.zxing.qrcode.QRCodeWriter().encode(text, com.google.zxing.BarcodeFormat.QR_CODE, 512, 512, hints);
+                int[] px = new int[512 * 512]; for (int y = 0; y < 512; y++) for (int x = 0; x < 512; x++) px[y * 512 + x] = m.get(x, y) ? 0xFF000000 : 0xFFFFFFFF;
+                Bitmap bm = Bitmap.createBitmap(px, 512, 512, Bitmap.Config.ARGB_8888); ByteArrayOutputStream bo = new ByteArrayOutputStream(); bm.compress(Bitmap.CompressFormat.PNG, 100, bo);
+                return "data:image/png;base64," + Base64.encodeToString(bo.toByteArray(), Base64.NO_WRAP);
+            } catch (Throwable e) { return ""; }
+        }
+
+        /** Opens Google's QR scanner; the answer (the text in the code, or null) comes back through window.__cb(id, text). */
+        @JavascriptInterface
+        public void scanQr(final String id) {
+            ui.post(() -> {
+                try {
+                    com.google.mlkit.vision.codescanner.GmsBarcodeScanning.getClient(MainActivity.this).startScan()
+                            .addOnSuccessListener(b -> js("window.__cb(" + JSONObject.quote(id) + "," + JSONObject.quote(b.getRawValue() == null ? "" : b.getRawValue()) + ")"))
+                            .addOnFailureListener(e -> js("window.__cb(" + JSONObject.quote(id) + ",null)"))
+                            .addOnCanceledListener(() -> js("window.__cb(" + JSONObject.quote(id) + ",null)"));
+                } catch (Throwable t) { js("window.__cb(" + JSONObject.quote(id) + ",null)"); }
+            });
+        }
+
+        /** The main colour of a game cover (for "use this game's colours"). Answer: window.__cb(id, "#rrggbb" or null). */
+        @JavascriptInterface
+        public void coverColor(final String url, final String id) {
+            pool.execute(() -> {
+                String out = "null";
+                try {
+                    Uri u = Uri.parse(url == null ? "" : url); String host = u.getHost() == null ? "" : u.getHost();
+                    if ("https".equals(u.getScheme()) && (host.endsWith("steamstatic.com") || host.endsWith("akamaihd.net"))) {
+                        java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(url).openConnection(); c.setConnectTimeout(8000); c.setReadTimeout(8000);
+                        InputStream in = c.getInputStream(); BitmapFactory.Options o = new BitmapFactory.Options(); o.inSampleSize = 4; Bitmap bm = BitmapFactory.decodeStream(in, null, o); in.close();
+                        if (bm != null) {
+                            double rs = 0, gs = 0, bs = 0, ws = 0;
+                            for (int y = 0; y < bm.getHeight(); y += 2) for (int x = 0; x < bm.getWidth(); x += 2) {
+                                int p = bm.getPixel(x, y), r = (p >> 16) & 255, g = (p >> 8) & 255, b = p & 255, mx = Math.max(r, Math.max(g, b)), mn = Math.min(r, Math.min(g, b));
+                                double sat = mx == 0 ? 0 : (mx - mn) / (double) mx, w = sat * sat * (mx / 255.0) + 0.001;
+                                rs += r * w; gs += g * w; bs += b * w; ws += w;
+                            }
+                            if (ws > 0) out = JSONObject.quote(String.format("#%02x%02x%02x", (int) (rs / ws), (int) (gs / ws), (int) (bs / ws)));
+                        }
+                    }
+                } catch (Exception e) { }
+                final String o2 = out; js("window.__cb(" + JSONObject.quote(id) + "," + o2 + ")");
+            });
+        }
+
+        @JavascriptInterface
         public void setFriendsWidget(int online, String names) { FriendsWidget.set(MainActivity.this, online, names == null ? "" : names); }
 
         /** Saves a picture (a web address or a data: picture) into the phone's Pictures/SteamLite folder. */

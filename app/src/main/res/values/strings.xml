@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="widget_desc">Your unread SteamLite messages</string>
+    <string name="widget_streak_desc">Your play streak and whether today is done</string>
     <string name="widget_friends_desc">Friends who are online right now</string>
     <string name="sc_messages">Messages</string>
     <string name="sc_messages_long">Open your messages</string>

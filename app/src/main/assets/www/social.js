@@ -250,6 +250,7 @@ function paintGames() {
   var fe = $('#gfil'), se = $('#gsort'); if (fe) setHtml(fe, chips(FILTERS, LIB.filter, 'data-f')); if (se) setHtml(se, chips([['hours', 'Most played'], ['recent', 'Last played'], ['name', 'A to Z']], LIB.sort, 'data-s'));
   var list = S.games.filter(function (g) {
     if (q && (g.name || '').toLowerCase().indexOf(q) < 0) return false;
+    if (LIB.filter === 'hidden') return HID().indexOf(g.appid) >= 0; if (HID().indexOf(g.appid) >= 0) return false;
     if (LIB.filter.indexOf('fol:') === 0) { var fo = FOLD()[LIB.filter.slice(4)]; return !!fo && fo.g.indexOf(g.appid) >= 0; }
     if (LIB.filter.indexOf('col:') === 0) return ((S.bk && S.bk.cols[LIB.filter.slice(4)]) || []).indexOf(g.appid) >= 0; if (LIB.filter === 'unplayed') return g.playtime_forever === 0; if (LIB.filter === 'recent') return g.playtime_2weeks > 0; if (LIB.filter === 'fav') return fav.indexOf(g.appid) >= 0; if (LIB.filter === 'long') return g.playtime_forever >= 600; return true;
   });
@@ -301,6 +302,7 @@ function libStats() {
     gl.innerHTML = '<div class="grid"><div class="card"><b>' + Math.round(tot / 60).toLocaleString() + ' h</b><div class="sub">Total played</div></div><div class="card"><b>' + g.length + '</b><div class="sub">Games</div></div><div class="card"><b>' + (Math.round(two / 6) / 10) + ' h</b><div class="sub">Last 2 weeks</div></div><div class="card"><b>' + unp + '</b><div class="sub">Never played (' + Math.round(unp / g.length * 100) + '%)</div></div></div>' +
       '<div class="sec">Most played</div><div class="card">' + top.map(function (x) { return '<div class="stat" data-gp="' + x.appid + '"><div class="sub st-l"><span>' + esc(x.name) + '</span><span>' + Math.round(x.playtime_forever / 60) + ' h</span></div><div class="bar"><i style="width:' + Math.round(x.playtime_forever / mx * 100) + '%"></i></div></div>'; }).join('') + '</div>' +
       '<div class="sec">Last two weeks</div><div class="card">' + (rec.length ? rec.map(function (x) { return '<div class="stat" data-gp="' + x.appid + '"><div class="sub st-l"><span>' + esc(x.name) + '</span><span>' + (Math.round(x.playtime_2weeks / 6) / 10) + ' h</span></div><div class="bar"><i style="width:' + Math.round(x.playtime_2weeks / rmx * 100) + '%"></i></div></div>'; }).join('') : '<div class="sub">Nothing played in the last two weeks.</div>') + '</div>';
+    if (window.statsExtra) statsExtra(gl, g);
   };
   var c = S.games || cget('games'); if (c) { S.games = c; draw(c); } else gl0();
   function gl0() { fetchGames().then(draw); }
