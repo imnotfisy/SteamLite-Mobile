@@ -22,16 +22,18 @@ import org.json.JSONObject;
  * (Android does not allow background checks to run more often than that.)
  */
 public class PollService extends JobService {
-    static final int JOB_ID = 4201;
+    static final int JOB_ID = 4202;   // 4201 was the old 15-minute job
     static final String CHANNEL = "messages";
 
     static void schedule(Context c) {
         JobScheduler js = (JobScheduler) c.getSystemService(Context.JOB_SCHEDULER_SERVICE);
         if (js == null) return;
+        js.cancel(4201);
         for (JobInfo j : js.getAllPendingJobs()) if (j.getId() == JOB_ID) return;
         js.schedule(new JobInfo.Builder(JOB_ID, new ComponentName(c, PollService.class))
-                .setPeriodic(15 * 60 * 1000L)
+                .setPeriodic(30 * 60 * 1000L)   // push (Firebase) delivers messages instantly; this is only the backup
                 .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                .setRequiresBatteryNotLow(true)
                 .setPersisted(true)
                 .build());
     }

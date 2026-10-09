@@ -169,7 +169,7 @@ function viewImage(src) { var v = $('#viewer'); v.innerHTML = '<img src="' + esc
 // ---------- game covers: same fallbacks as the PC app ----------
 // 1 classic CDN  2 second CDN host  3 Steam store API (newer games use a hashed path)  4 capsule  5 hero  6 coloured tile
 var AK = 'https://cdn.akamai.steamstatic.com/steam/apps/', CF = 'https://cdn.cloudflare.steamstatic.com/steam/apps/';
-function gi(appid, name) { appid = appid | 0; return '<div class="gi" data-a="' + appid + '" data-n="' + esc(String(name || '?').trim().charAt(0).toUpperCase() || '?') + '"><img data-app="' + appid + '" data-st="0" alt="" src="' + AK + appid + '/header.jpg"></div>'; }
+function gi(appid, name) { appid = appid | 0; return '<div class="gi" data-a="' + appid + '" data-n="' + esc(String(name || '?').trim().charAt(0).toUpperCase() || '?') + '"><img data-app="' + appid + '" data-st="0" alt="" loading="lazy" decoding="async" src="' + AK + appid + '/header.jpg"></div>'; }
 var storeQ = Promise.resolve(), storeBackoff = 0, storeMiss = {};
 function storeImg(id) {
   var hit = ls.get('himg' + id); if (hit) return Promise.resolve(hit);
@@ -280,7 +280,7 @@ function boot() {
     if (!m.steamid) { if (!S.me && m.http !== 401) $('#view').innerHTML = '<div class="empty">' + esc(m.error || 'Could not reach SteamLite.') + '<br><br><button class="btn" onclick="boot()">Retry</button></div>'; return; }
     var first = !S.me; S.me = Object.assign(S.me || {}, m); cset('me', S.me);
     if (first) { buildTabs(); go(S.tab); }
-    clearInterval(S.poll); S.poll = setInterval(tick, 8000); tick();
+    clearInterval(S.poll); S.poll = setInterval(tick, 10000); tick();
     startPresence(); N('setMuteAll', ls.get('muteAll') === '1');
     api('GET', '/social/gif?q=').then(function (g) { S.gifOk = !!(g && g.ok); });
     loadNews(); loadBackup(); setInterval(loadNews, 600000);

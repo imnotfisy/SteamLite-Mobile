@@ -179,6 +179,13 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() { super.onPause(); foreground = false; leftAt = System.currentTimeMillis(); }
 
+    /** When the app is not on screen, nothing in the page should keep running (timers, animations): that is most of the battery use. */
+    @Override
+    protected void onStop() { super.onStop(); if (web != null) { web.onPause(); web.pauseTimers(); } }
+
+    @Override
+    protected void onStart() { super.onStart(); if (web != null) { web.resumeTimers(); web.onResume(); } }
+
     private void askLock() {
         KeyguardManager km = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
         if (km == null || !km.isDeviceSecure()) return;
@@ -203,6 +210,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
+        if (web != null) { web.resumeTimers(); web.onResume(); }   // the page must be awake to receive the answer
         if (req == REQ_LOCK) {
             locking = false;
             if (res == RESULT_OK) { leftAt = 0; js("window.lockUi&&lockUi(false)"); }   // if cancelled, the lock screen stays and its button asks again

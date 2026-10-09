@@ -285,3 +285,13 @@ function refreshPcs() {
 var _onResume2 = window.onResumeApp;
 window.onResumeApp = function () { if (S.tok) refreshPcs(); if (_onResume2) _onResume2(); };
 setInterval(function () { if (S.tok && !document.hidden && S.tab === 'home') refreshPcs(); }, 60000);
+
+// ---------- startup splash ----------
+var SPLASH_AT = Date.now();
+function hideSplash() {
+  var el = document.getElementById('splash'); if (!el || el.__gone) return; el.__gone = 1;
+  var wait = Math.max(0, 1250 - (Date.now() - SPLASH_AT)); setTimeout(function () { el.classList.add('out'); setTimeout(function () { el.remove(); }, 600); }, wait);
+}
+(function waitForFirstScreen() {
+  var n = 0, t = setInterval(function () { n++; var v = document.getElementById('view'); if ((v && v.children.length) || n > 40) { clearInterval(t); setTimeout(hideSplash, 150); } }, 120);
+})();

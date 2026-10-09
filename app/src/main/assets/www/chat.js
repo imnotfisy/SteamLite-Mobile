@@ -136,7 +136,7 @@ function openChat(id) {
   mb.onscroll = function () { if (nearEnd()) $('#newpill').classList.remove('on'); if (mb.scrollTop < 60 && C.info && C.info.hasMore && !C.loadingOld) loadOlder(); };
   swipeReply(mb);
   var cc = cget('conv:' + id); if (cc && cc.messages) { C.info = cc; C.msgs = cc.messages; C.last = C.msgs.length ? C.msgs[C.msgs.length - 1].id : 0; paintHead(); paintMsgs(true); }   // saved copy first
-  loadConv(true); clearInterval(C.timer); C.timer = setInterval(function () { if (!document.hidden) loadConv(false); }, 2500);
+  loadConv(true); clearInterval(C.timer); C.lastAct = Date.now(); chatPoll();
 }
 function closeChat(quiet) {
   clearInterval(C.timer); if (C && C.rec) N('recStop', true); if (VA) { VA.pause(); VA = null; VID = ''; }
@@ -147,7 +147,7 @@ function loadConv(first) {
   api('GET', '/social/conv?id=' + id + (C.last && !first ? '&after=' + C.last : '')).then(function (r) {
     if (id !== C.id) return;
     if (r.error) { if (first && !C.info) { toast(r.error); closeChat(true); } return; }
-    var fresh = r.messages || [];
+    var fresh = r.messages || []; if (fresh.length || (r.typing && r.typing.length)) C.lastAct = Date.now();
     if (first || !C.info) { C.info = r; C.msgs = fresh; if (first) { var mr0 = r.myRead || 0, fu0 = fresh.filter(function (m) { return m.id > mr0 && !m.mine && m.kind !== 'system'; })[0]; C.firstUnread = fu0 && fresh.indexOf(fu0) > 0 ? fu0.id : 0; C.unreadN = fu0 ? fresh.filter(function (m) { return m.id >= fu0.id && !m.mine; }).length : 0; C.scrollDiv = !!C.firstUnread; } }
     else { C.info.typing = r.typing; C.info.peerRead = r.peerRead; C.info.peerLast = r.peerLast; C.info.members = r.members; C.info.muted = r.muted; streakChange(C.info.streak, r.streak, C.info); C.info.streak = r.streak; C.info.canSend = r.canSend; if (fresh.length) { var ids = {}; C.msgs.forEach(function (m) { ids[m.id] = 1; }); fresh.forEach(function (m) { if (!ids[m.id]) { C.msgs.push(m); C.newIds[m.id] = 1; if (m.mine) C.seen[m.id] = 1; } }); } }
     C.msgs = C.msgs.filter(function (m) { return !m.tmp || !fresh.some(function (f) { return f.mine && f.at >= m.at - 5000 && f.text === m.text; }); });
@@ -233,7 +233,7 @@ function buildComposer() {
   inp.value = ls.get('draft:' + C.id) || ''; fit(); mode();
   function fit() { inp.style.height = 'auto'; inp.style.height = Math.min(110, inp.scrollHeight) + 'px'; }
   function mode() { var has = !!inp.value.trim(); sb.innerHTML = has ? SENDI : MICI; sb.dataset.m = has ? 's' : 'm'; }
-  inp.oninput = function () { fit(); mode(); ls.set('draft:' + C.id, inp.value); if (Date.now() - C.typedAt > 3000 && inp.value) { C.typedAt = Date.now(); api('POST', '/social/typing', { conv: C.id }); } };
+  inp.oninput = function () { fit(); mode(); ls.set('draft:' + C.id, inp.value); C.lastAct = Date.now(); if (Date.now() - C.typedAt > 3000 && inp.value) { C.typedAt = Date.now(); api('POST', '/social/typing', { conv: C.id }); } };
   sb.onclick = function () { if (sb.dataset.m === 's') sendMsg(); else startRec(); };
   $('#cemo').onclick = function () { sheet('<div class="emo">' + ALLE.map(function (e) { return '<button>' + e + '</button>'; }).join('') + '</div>'); $('#sheet').onclick = function (e) { var b = e.target.closest('.emo button'); if (b) { inp.value += b.textContent; inp.oninput(); closeSheet(); } }; };
   $('#cat').onclick = attachMenu;
@@ -481,4 +481,10 @@ function pickGroupPic() {
 function watchStick(box) {
   var stuck = true, lastH = box.clientHeight; box.addEventListener('scroll', function () { stuck = box.scrollHeight - box.scrollTop - box.clientHeight < 80; }, { passive: true });
   if (window.ResizeObserver) new ResizeObserver(function () { var h = box.clientHeight; if (h !== lastH) { lastH = h; if (stuck) box.scrollTop = box.scrollHeight; } }).observe(box);
+}
+
+// the open chat is checked often while it is active, and less and less when nothing happens (saves battery and data)
+function chatPoll() {
+  var id = C.id; if (!id) return; var idle = Date.now() - (C.lastAct || Date.now()), d = idle < 30000 ? 2500 : idle < 120000 ? 5000 : 10000;
+  C.timer = setTimeout(function () { if (C.id !== id) return; if (!document.hidden) loadConv(false); chatPoll(); }, d);
 }

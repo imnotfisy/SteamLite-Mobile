@@ -405,3 +405,77 @@ button,.row,.card,.game,.gcard,.stat,.act{transition:transform .38s var(--spring
 .dgrow{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--card2)}.dgrow:last-of-type{border:0}.dgrow b.good{color:var(--ok,#22c55e)}.dgrow b.bad{color:var(--bad)}
 .wrap2{white-space:normal;word-break:break-word}
 .compact .row{padding-top:6px;padding-bottom:6px}.compact .row .av{width:36px;height:36px}.compact .m{padding:6px 10px;font-size:14px}
+
+/* ===== 1.2.3: calm, modern motion (replaces the bouncy 1.0.1 block above) ===== */
+:root{--spring:cubic-bezier(.2,.8,.2,1);--spring2:cubic-bezier(.2,.8,.2,1);--smooth:cubic-bezier(.2,.7,.2,1);--ease:cubic-bezier(.3,0,0,1)}
+button,.row,.card,.game,.gcard,.stat,.act{transition:transform .18s var(--ease),background .18s ease,opacity .18s ease,box-shadow .2s ease!important}
+.btn:active,.row:active,.game:active,.card:active,.tabs button:active,.act:active,.send:active,.cb:active,.stat:active{transform:scale(.975)!important;transition-duration:.08s!important}
+.game:active{transform:scale(.985)!important}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.anim .hdr,.anim .seg,.anim .pad>*,.anim .grid>*,.anim #gl>*{animation:rise .3s var(--smooth) both!important}
+@keyframes bump{0%{transform:scale(1)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
+.tabs button.on svg{animation:bump .3s var(--ease)!important}
+.tabs button.on::before{animation:bar .3s var(--ease)!important}
+#sheet{transition:transform .34s var(--smooth)!important}
+#sheetbg{transition:opacity .25s ease,visibility .25s!important}
+#chat,#gpage{transition:transform .34s var(--smooth)!important}
+#pages .pg{transition:transform .34s var(--smooth)}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.m{transition:transform .2s var(--ease)!important}
+#toast{transform:translate(-50%,10px)!important;transition:opacity .2s ease,transform .3s var(--smooth)!important}
+#toast.on{transform:translate(-50%,0)!important}
+.sw i::after{transition:transform .22s var(--ease)!important}
+.seg button,.seg2 .btn{transition:background .2s ease,color .2s ease,transform .18s var(--ease)!important}
+.seg button:active,.seg2 .btn:active{transform:scale(.96)!important}
+.seg button.on{animation:none}
+.send{transition:transform .18s var(--ease),background .2s!important}.send:active{transform:scale(.92)!important}
+.emo button{transition:transform .2s var(--ease)!important}.emo button:active{transform:scale(1.2)!important}
+#newpill{transform:translateX(-50%) translateY(10px)!important;transition:opacity .2s ease,transform .3s var(--smooth)!important}
+#newpill.on{transform:translateX(-50%) translateY(0)!important}
+.gi img{transition:opacity .3s ease!important;transform:none!important}
+.mimg,.shot{transition:transform .2s var(--ease)}.mimg:active,.shot:active{transform:scale(.985)}
+@keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+#upd .ub,#off .ob,#nbar .ub{animation:slideIn .3s var(--smooth) both!important}
+#ptr{transition:height .25s var(--ease)}
+.bar i,.vm .vb i{transition:width .4s var(--smooth)!important}
+.anim .bar i{animation:grow .5s var(--smooth) both}
+#viewer img{animation:zoomIn .25s var(--smooth)}
+@keyframes zoomIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+@keyframes bl{0%,60%,100%{opacity:.3;transform:none}30%{opacity:1;transform:translateY(-2px)}}
+/* placeholders breathe instead of sweeping: cheaper for the battery */
+@keyframes shim{0%,100%{opacity:1}50%{opacity:.6}}
+.sk,.gi:not(.ph){background:var(--card2)!important;background-size:auto!important;animation:shim 1.8s ease-in-out infinite!important}
+.gi:has(img.ok){animation:none!important}
+/* avatar frames only move where they are the star (profiles and Home) */
+.frm.spin::before{animation:none}.frm.pulse{animation:none}
+.pfav .frm.spin::before,.homeav .frm.spin::before{animation:spinring 8s linear infinite}
+.pfav .frm.pulse,.homeav .frm.pulse{animation:glowp 3s ease-in-out infinite}
+@keyframes flrisk{50%{transform:scale(1.08);opacity:.8}}
+.fl.risk{animation-duration:2.4s}
+/* streak celebration: softer */
+#strk{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(0,0,0,.62)}
+@keyframes skpop{from{transform:translateY(14px) scale(.96);opacity:0}to{transform:none;opacity:1}}
+.sk-card{animation:skpop .5s var(--smooth) both}
+@keyframes skflame{from{transform:scale(1)}to{transform:scale(1.04)}}
+.sk-fire svg{filter:drop-shadow(0 0 16px rgba(255,140,40,.6));animation:skflame 2s ease-in-out .5s infinite alternate}
+@keyframes skring{0%{transform:scale(.8);opacity:.5}100%{transform:scale(1.7);opacity:0}}
+.sk-fire b{animation-duration:1.8s}
+.sk-sparks i:nth-child(odd){display:none}
+.sk-num .n{animation:skin .5s var(--smooth) .55s both}.sk-num .o{animation:skout .45s var(--smooth) .55s both}
+
+/* startup splash */
+#splash{position:fixed;inset:0;z-index:200;background:#0b0f17;display:grid;place-items:center;overflow:hidden;transition:opacity .5s ease,transform .6s var(--smooth)}
+#splash.out{opacity:0;transform:scale(1.03);pointer-events:none}
+.sp-glow{position:absolute;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--acc,#8b5cf6) 36%,transparent),transparent 65%);opacity:0;transform:scale(.7);animation:spglow 1.8s var(--smooth) .1s forwards}
+.sp-wrap{position:relative;display:flex;flex-direction:column;align-items:center;gap:18px}
+.sp-logo{width:92px;height:92px;border-radius:28px;display:grid;place-items:center;background:linear-gradient(145deg,var(--acc,#8b5cf6),#3b2a78);box-shadow:0 18px 50px color-mix(in srgb,var(--acc,#8b5cf6) 40%,transparent);opacity:0;transform:scale(.88);filter:blur(10px);animation:splogo .8s var(--smooth) .1s forwards}
+.sp-logo svg{width:52px;height:52px;fill:#fff}
+.sp-name{font-size:22px;font-weight:600;letter-spacing:.28em;color:#e8ebf4;padding-left:.28em;opacity:0;animation:spname .8s var(--smooth) .45s forwards}
+.sp-line{width:64px;height:2px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden;opacity:0;animation:spname .5s ease .8s forwards}
+.sp-line i{display:block;height:100%;width:40%;border-radius:2px;background:var(--acc,#8b5cf6);animation:spbar 1.2s ease-in-out infinite}
+@keyframes splogo{to{opacity:1;transform:none;filter:none}}
+@keyframes spname{from{opacity:0;transform:translateY(6px)}to{opacity:.9;transform:none}}
+@keyframes spglow{to{opacity:1;transform:scale(1)}}
+@keyframes spbar{0%{transform:translateX(-110%)}100%{transform:translateX(260%)}}
+.rm .sp-logo,.rm .sp-name,.rm .sp-line,.rm .sp-glow{opacity:1;transform:none;filter:none}
+@media (prefers-reduced-motion:reduce){.sp-logo,.sp-name,.sp-line,.sp-glow{opacity:1;transform:none;filter:none}}
