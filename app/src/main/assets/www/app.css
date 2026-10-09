@@ -479,3 +479,12 @@ button,.row,.card,.game,.gcard,.stat,.act{transition:transform .18s var(--ease),
 @keyframes spbar{0%{transform:translateX(-110%)}100%{transform:translateX(260%)}}
 .rm .sp-logo,.rm .sp-name,.rm .sp-line,.rm .sp-glow{opacity:1;transform:none;filter:none}
 @media (prefers-reduced-motion:reduce){.sp-logo,.sp-name,.sp-line,.sp-glow{opacity:1;transform:none;filter:none}}
+
+/* ===== 1.2.4: solid page banners, and cards no longer react when you touch them ===== */
+.hdr{background:var(--bg)}
+#pages .pg,#gpage{padding-top:0}
+#pages .pg .pgh,#gpage .gph{position:sticky;top:0;z-index:6;padding-top:calc(12px + env(safe-area-inset-top))!important;background:var(--bg)!important}
+.hdr.stuck{box-shadow:0 1px 0 var(--line)}
+.card:active,.row.card:active{transform:none!important}
+button.card:active,a.card:active{transform:scale(.985)!important}
+.seg button,.seg2 .btn{transition:none!important}.seg button:active,.seg2 .btn:active{transform:none!important}

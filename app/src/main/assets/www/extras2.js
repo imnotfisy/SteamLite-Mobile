@@ -295,3 +295,9 @@ function hideSplash() {
 (function waitForFirstScreen() {
   var n = 0, t = setInterval(function () { n++; var v = document.getElementById('view'); if ((v && v.children.length) || n > 40) { clearInterval(t); setTimeout(hideSplash, 150); } }, 120);
 })();
+
+// the banner at the top of a screen gets a thin line once content scrolls under it
+(function stuckHeaders() {
+  var pairs = [['#view', '.hdr'], ['#gpage', '.gph'], ['#pages', '.pgh']];
+  pairs.forEach(function (p) { var el = document.querySelector(p[0]); if (!el) return; el.addEventListener('scroll', function (e) { var sc = e.target, h = sc.querySelector && sc.querySelector(p[1]); if (h) h.classList.toggle('stuck', sc.scrollTop > 2); }, { passive: true, capture: true }); });
+})();
