@@ -23,8 +23,8 @@ android {
         applicationId = "com.steamlite.mobile"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "1.2.4"
+        versionCode = 10
+        versionName = "1.3.0"
     }
 
     signingConfigs {
@@ -57,5 +57,6 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:35.0.0"))
     implementation("com.google.firebase:firebase-messaging")
 }
+
 
 

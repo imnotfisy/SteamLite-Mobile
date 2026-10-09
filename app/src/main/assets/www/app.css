@@ -488,3 +488,16 @@ button,.row,.card,.game,.gcard,.stat,.act{transition:transform .18s var(--ease),
 .card:active,.row.card:active{transform:none!important}
 button.card:active,a.card:active{transform:scale(.985)!important}
 .seg button,.seg2 .btn{transition:none!important}.seg button:active,.seg2 .btn:active{transform:none!important}
+
+/* 1.3.0: folders and the store */
+.fgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.fcard{background:var(--card);border:0;border-radius:16px;padding:8px;text-align:left;color:var(--text);display:flex;flex-direction:column;gap:4px}
+.fmos{display:grid;grid-template-columns:1fr 1fr;gap:3px;border-radius:10px;overflow:hidden;background:var(--card2);aspect-ratio:460/215}
+.fmos img,.fmos i{width:100%;height:100%;object-fit:cover;display:block;background:var(--card2);aspect-ratio:460/215}
+.fcard .fn{display:flex;align-items:center;gap:6px;font-weight:600;padding:2px 4px 0}.fcard .sub{padding:0 4px 2px}
+.chk{width:24px;height:24px;border-radius:8px;border:2px solid var(--line);display:grid;place-items:center;flex:none;color:#fff}.chk.on{background:var(--acc);border-color:var(--acc)}
+.gimini{width:72px;flex:none;border-radius:6px;overflow:hidden}
+.sgrow{align-items:flex-start}.sgi{width:120px;flex:none;border-radius:8px;overflow:hidden}
+.sgp{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px}.sgp s{opacity:.7}
+.chip.off{background:#4c8b2b;color:#fff}
+.fbtn{display:flex;align-items:center;gap:10px;width:100%;border:0;color:var(--text)}

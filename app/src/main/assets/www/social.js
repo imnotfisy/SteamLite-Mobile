@@ -250,6 +250,7 @@ function paintGames() {
   var fe = $('#gfil'), se = $('#gsort'); if (fe) setHtml(fe, chips(FILTERS, LIB.filter, 'data-f')); if (se) setHtml(se, chips([['hours', 'Most played'], ['recent', 'Last played'], ['name', 'A to Z']], LIB.sort, 'data-s'));
   var list = S.games.filter(function (g) {
     if (q && (g.name || '').toLowerCase().indexOf(q) < 0) return false;
+    if (LIB.filter.indexOf('fol:') === 0) { var fo = FOLD()[LIB.filter.slice(4)]; return !!fo && fo.g.indexOf(g.appid) >= 0; }
     if (LIB.filter.indexOf('col:') === 0) return ((S.bk && S.bk.cols[LIB.filter.slice(4)]) || []).indexOf(g.appid) >= 0; if (LIB.filter === 'unplayed') return g.playtime_forever === 0; if (LIB.filter === 'recent') return g.playtime_2weeks > 0; if (LIB.filter === 'fav') return fav.indexOf(g.appid) >= 0; if (LIB.filter === 'long') return g.playtime_forever >= 600; return true;
   });
   list.sort(LIB.sort === 'name' ? function (a, b) { return (a.name || '').localeCompare(b.name || ''); } : LIB.sort === 'recent' ? function (a, b) { return (b.last || 0) - (a.last || 0); } : function (a, b) { return b.playtime_forever - a.playtime_forever; });
