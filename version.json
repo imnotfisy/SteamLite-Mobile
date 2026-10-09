@@ -1,7 +1,7 @@
 {
-    "version":  "1.2.3",
-    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.2.3/SteamLite-Mobile-1.2.3.apk",
-    "sha256":  "d12a150936e49f67317243418034e6448368740ced34fd1adf1e0de6f4797d00",
-    "size":  2982785,
-    "notes":  "A new startup animation, calmer and more modern animations everywhere, and battery savings: the app now stops its timers and animations when it is not on screen, the open chat checks less often when quiet, and the background check runs less often."
+    "version":  "1.2.4",
+    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.2.4/SteamLite-Mobile-1.2.4.apk",
+    "sha256":  "915bcb14a6ee26e1ca5e83a8d6aca948389c2c315b39b72bb8b00af85fc002ce",
+    "size":  2983113,
+    "notes":  "Screen banners are now solid and stay pinned while you scroll, cards no longer shrink when you touch them, and the setting selectors change instantly."
 }
