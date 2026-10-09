@@ -1,7 +1,7 @@
 {
-    "version":  "1.3.0",
-    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.3.0/SteamLite-Mobile-1.3.0.apk",
-    "sha256":  "c2d45483044f01f47917e55f37e5256edc5f013d5f90d1c420cea1a9796907f7",
-    "size":  2988880,
-    "notes":  "Library folders (make your own, add games, see your PC collections) and a Steam store tab to search every game on Steam with sale, free, new and top-rated filters."
+    "version":  "1.4.0",
+    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.4.0/SteamLite-Mobile-1.4.0.apk",
+    "sha256":  "c192e9844d56809848190e1a6af696cf46856f250ca9e4eb8c9c9b78a7f53e60",
+    "size":  3466690,
+    "notes":  "Steam store price alerts, tag and sort filters, friends who own a game and similar games; smart folders, shared folders with friends, bulk select and hidden games; hours-per-day chart and all-time recap; a My PC card (status, lock, sleep, close game); friend QR code and scanner; chat export; streak widget; game colours; phone settings backup. Needs SteamLite 9.4.0 on the PC for lock, sleep and close."
 }
