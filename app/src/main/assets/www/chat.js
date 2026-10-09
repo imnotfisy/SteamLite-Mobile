@@ -9,36 +9,41 @@ function act(icon, label, attrs, cls) { return '<button class="act' + (cls ? ' '
 // ---------- the list of chats ----------
 function renderMsgs() {
   var o = S.ov, v = $('#view'), pins = PINNED();
-  var h = '<div class="hdr"><h1>Messages</h1><button class="btn sm ghost iconb" id="newsb" aria-label="News and polls">' + ic('bell', 17) + (newsUnseen() ? '<i class="ndot"></i>' : '') + '</button><button class="btn sm ghost" id="newg">' + ic('plus', 15) + ' New group</button></div><div class="pad">';
+  var h = '<div class="hdr"><h1>Messages</h1><button class="btn sm ghost iconb" id="newsb" aria-label="News and polls">' + ic('bell', 17) + (newsUnseen() ? '<i class="ndot"></i>' : '') + '</button><button class="btn sm ghost iconb" id="markall" aria-label="Mark all as read">'+ic('check',17)+'</button><button class="btn sm ghost" id="newg">' + ic('plus', 15) + ' New group</button></div><div class="pad">';
   if (!o) h += skel(6);
   else if (!o.convs.length) h += '<div class="empty">No chats yet.<br>Add a friend, then tap them to say hi.</div>';
   else {
     var list = o.convs.slice().sort(function (a, b) { var pa = pins.indexOf(a.id) >= 0 ? 1 : 0, pb = pins.indexOf(b.id) >= 0 ? 1 : 0; return pb - pa || b.at - a.at; });
+    var arch = ARCH(), hidden = list.filter(function (c) { return arch[c.id] && !(c.unread && c.at > arch[c.id]); });
+    list = S.showArch ? hidden : list.filter(function (c) { return hidden.indexOf(c) < 0; });
+    if (S.showArch) h += '<button class="row archrow" data-arch="1"><span class="grow name">' + ic('back', 16) + ' Back to chats</span></button>';
     h += list.map(function (c) {
-      var last = c.last ? (c.last.mine ? 'You: ' : (c.kind === 'group' && c.last.from ? c.last.from + ': ' : '')) + plain(c.last.text) : 'No messages yet';
-      return '<div class="row" data-c="' + c.id + '"><div class="av"' + avStyle(c.avatar) + '>' + (c.kind === 'group' ? '<span class="gav">' + ic('users', 22) + '</span>' : '') + '</div><div class="grow"><div class="name">' + (pins.indexOf(c.id) >= 0 ? '<span class="mi">' + ic('pin', 13) + '</span>' : '') + nameHtml(c) + (c.muted ? '<span class="mi">' + ic('bellOff', 13) + '</span>' : '') + '</div><div class="sub">' + esc(last) + '</div></div><div style="text-align:right"><div class="sub">' + (c.at ? ago(c.at) : '') + '</div>' + (c.unread ? '<div class="unread">' + c.unread + '</div>' : '') + '</div></div>';
+      var last = c.last ? (c.last.mine ? 'You: ' : (c.kind === 'group' && c.last.from ? c.last.from + ': ' : '')) + plain(c.last.text) : 'No messages yet'; var dr = ls.get('draft:' + c.id); if (dr && dr.trim()) last = 'Draft: ' + dr.trim().slice(0, 60); if (CLOCK().indexOf(c.id) >= 0) last = 'Locked chat';
+      return '<div class="row" data-c="' + c.id + '"><div class="av"' + avStyle(c.avatar) + '>' + (c.kind === 'group' && !c.avatar ? '<span class="gav">' + ic('users', 22) + '</span>' : '') + '</div><div class="grow"><div class="name">' + (pins.indexOf(c.id) >= 0 ? '<span class="mi">' + ic('pin', 13) + '</span>' : '') + nameHtml(c) + (c.muted ? '<span class="mi">' + ic('bellOff', 13) + '</span>' : '') + '</div><div class="sub">' + esc(last) + '</div></div><div style="text-align:right"><div class="sub">' + (c.at ? ago(c.at) : '') + '</div>' + (c.unread ? '<div class="unread">' + c.unread + '</div>' : '') + '</div></div>';
     }).join('');
+    if (!S.showArch && hidden.length) h += '<button class="row archrow" data-arch="1"><span class="grow sub">' + ic('box', 15) + ' Archived chats (' + hidden.length + ')</span></button>';
   }
   var changed = setHtml(v, h + '</div>');
   if (!changed && v.__bound) return; v.__bound = true;
   bindRows(v);
-  var ng = $('#newg'); if (ng) ng.onclick = newGroup; var nb = $('#newsb'); if (nb) nb.onclick = openNews;
+  var ng = $('#newg'); if (ng) ng.onclick = newGroup; var ma = $('#markall'); if (ma) ma.onclick = function () { api('POST', '/social/readall', {}).then(function (r) { if (r.error) return toast(r.error); hp('ok'); toast('All caught up'); tick(); }); }; var nb = $('#newsb'); if (nb) nb.onclick = openNews;
 }
 // tap opens the chat; press and hold opens the chat's options (swiping sideways changes tab)
 function bindRows(v) {
   var tm = 0, sx = 0, sy = 0, long = false;
-  v.onclick = function (e) { if (long) { long = false; return; } var r = e.target.closest('[data-c]'); if (r && S.tab === 'msgs') { hp('tap'); openChat(r.dataset.c); } };
+  v.onclick = function (e) { if (long) { long = false; return; } if (e.target.closest('[data-arch]')) { hp('tap'); S.showArch = !S.showArch; renderMsgs(); return; } var r = e.target.closest('[data-c]'); if (r && S.tab === 'msgs') { hp('tap'); openChat(r.dataset.c); } };
   v.ontouchstart = function (e) { var r = e.target.closest && e.target.closest('[data-c]'); if (!r || S.tab !== 'msgs') return; sx = e.touches[0].clientX; sy = e.touches[0].clientY; long = false; clearTimeout(tm); tm = setTimeout(function () { long = true; hp('heavy'); convSheet(r.dataset.c); }, 520); };
   v.ontouchmove = function (e) { var dx = e.touches[0].clientX - sx, dy = e.touches[0].clientY - sy; if (Math.abs(dx) > 12 || Math.abs(dy) > 12) clearTimeout(tm); };
   v.ontouchend = function () { clearTimeout(tm); };
 }
 function convSheet(id) {
-  var c = (S.ov && S.ov.convs.filter(function (x) { return x.id === id; })[0]); if (!c) return; var pins = PINNED(), pinned = pins.indexOf(id) >= 0;
-  sheet('<div class="row"><div class="av"' + avStyle(c.avatar) + '></div><div class="grow name">' + nameHtml(c) + '</div></div>' + act('pin', pinned ? 'Unpin chat' : 'Pin chat to the top', 'data-a="pin"') + act(c.muted ? 'bell' : 'bellOff', c.muted ? 'Unmute' : 'Mute', 'data-a="mute"') + act('msg', 'Open chat', 'data-a="open"'));
+  var c = (S.ov && S.ov.convs.filter(function (x) { return x.id === id; })[0]); if (!c) return; var pins = PINNED(), pinned = pins.indexOf(id) >= 0, arched = !!ARCH()[id];
+  sheet('<div class="row"><div class="av"' + avStyle(c.avatar) + '></div><div class="grow name">' + nameHtml(c) + '</div></div>' + act('pin', pinned ? 'Unpin chat' : 'Pin chat to the top', 'data-a="pin"') + act(c.muted ? 'bell' : 'bellOff', c.muted ? 'Unmute' : 'Mute', 'data-a="mute"') + act('box', arched ? 'Move back to chats' : 'Archive', 'data-a="arch"') + act('msg', 'Open chat', 'data-a="open"'));
   $('#sheet').onclick = function (e) {
     var a = e.target.closest('[data-a]'); if (!a) return; var k = a.dataset.a; closeSheet();
     if (k === 'pin') { var n = pinned ? pins.filter(function (x) { return x !== id; }) : pins.concat([id]).slice(-5); ls.set('pins', JSON.stringify(n)); renderMsgs(); toast(pinned ? 'Unpinned' : 'Pinned'); }
     else if (k === 'mute') muteSheet(id, c.muted, function (m) { c.muted = m; renderMsgs(); });
+    else if (k === 'arch') { var am = ARCH(); if (arched) delete am[id]; else am[id] = Date.now(); ls.set('arch', JSON.stringify(am)); if (S.showArch && !Object.keys(am).length) S.showArch = false; renderMsgs(); toast(arched ? 'Moved back' : 'Archived. It comes back when someone writes.'); }
     else openChat(id);
   };
 }
@@ -120,13 +125,13 @@ var C = { id: '', last: 0, msgs: [], reply: null, timer: 0, typedAt: 0, info: nu
 function openChat(id) {
   C = { id: id, last: 0, msgs: [], reply: null, timer: 0, typedAt: 0, info: null, seen: {}, newIds: {}, loadingOld: false, rec: null };
   var el = $('#chat');
-  el.innerHTML = '<div class="hdr" style="background:var(--card)"><button class="btn ghost sm" id="cback">' + ic('back', 18) + '</button><div class="av sm" id="chav"></div><div class="grow"><div class="name" id="chname"></div><div class="sub" id="chsub"></div></div><button class="btn ghost sm" id="chmore">' + ic('more', 18) + '</button></div><div id="viewwrap"><div id="msgs"></div><button id="newpill">' + ic('down', 14) + ' New messages</button></div><div class="typing" id="typing"></div><div id="rbar"></div><div class="composer" id="comp"></div>';
+  el.innerHTML = '<div class="hdr" style="background:var(--card)"><button class="btn ghost sm" id="cback">' + ic('back', 18) + '</button><div class="av sm" id="chav"></div><div class="grow"><div class="name" id="chname"></div><div class="sub" id="chsub"></div></div><button class="btn ghost sm" id="chmore">' + ic('more', 18) + '</button></div><div id="strkbar"></div><div id="viewwrap"><div id="msgs"></div><button id="newpill">' + ic('down', 14) + ' New messages</button></div><div class="typing" id="typing"></div><div id="rbar"></div><div class="composer" id="comp"></div>';
   buildComposer();
   el.classList.add('open');
   $('#cback').onclick = function () { closeChat(); };
   $('#chmore').onclick = chatMenu;
   $('#newpill').onclick = function () { var m = $('#msgs'); m.scrollTo({ top: m.scrollHeight, behavior: 'smooth' }); $('#newpill').classList.remove('on'); };
-  var mb = $('#msgs');
+  var mb = $('#msgs'); watchStick(mb);
   mb.onclick = function (e) { if (e.target.closest('a,[data-img],[data-buy],[data-gp],[data-list],[data-vplay]')) return; var m = e.target.closest('[data-mid]'); if (m && m.dataset.mid) { hp('tap'); msgMenu(+m.dataset.mid); } };
   mb.onscroll = function () { if (nearEnd()) $('#newpill').classList.remove('on'); if (mb.scrollTop < 60 && C.info && C.info.hasMore && !C.loadingOld) loadOlder(); };
   swipeReply(mb);
@@ -143,8 +148,8 @@ function loadConv(first) {
     if (id !== C.id) return;
     if (r.error) { if (first && !C.info) { toast(r.error); closeChat(true); } return; }
     var fresh = r.messages || [];
-    if (first || !C.info) { C.info = r; C.msgs = fresh; }
-    else { C.info.typing = r.typing; C.info.peerRead = r.peerRead; C.info.peerLast = r.peerLast; C.info.members = r.members; C.info.muted = r.muted; C.info.streak = r.streak; C.info.canSend = r.canSend; if (fresh.length) { var ids = {}; C.msgs.forEach(function (m) { ids[m.id] = 1; }); fresh.forEach(function (m) { if (!ids[m.id]) { C.msgs.push(m); C.newIds[m.id] = 1; } }); } }
+    if (first || !C.info) { C.info = r; C.msgs = fresh; if (first) { var mr0 = r.myRead || 0, fu0 = fresh.filter(function (m) { return m.id > mr0 && !m.mine && m.kind !== 'system'; })[0]; C.firstUnread = fu0 && fresh.indexOf(fu0) > 0 ? fu0.id : 0; C.unreadN = fu0 ? fresh.filter(function (m) { return m.id >= fu0.id && !m.mine; }).length : 0; C.scrollDiv = !!C.firstUnread; } }
+    else { C.info.typing = r.typing; C.info.peerRead = r.peerRead; C.info.peerLast = r.peerLast; C.info.members = r.members; C.info.muted = r.muted; streakChange(C.info.streak, r.streak, C.info); C.info.streak = r.streak; C.info.canSend = r.canSend; if (fresh.length) { var ids = {}; C.msgs.forEach(function (m) { ids[m.id] = 1; }); fresh.forEach(function (m) { if (!ids[m.id]) { C.msgs.push(m); C.newIds[m.id] = 1; if (m.mine) C.seen[m.id] = 1; } }); } }
     C.msgs = C.msgs.filter(function (m) { return !m.tmp || !fresh.some(function (f) { return f.mine && f.at >= m.at - 5000 && f.text === m.text; }); });
     C.last = C.msgs.filter(function (m) { return !m.tmp; }).pop(); C.last = C.last ? C.last.id : 0;
     var atEnd = first || nearEnd(); paintHead(); paintMsgs(atEnd);
@@ -166,19 +171,21 @@ function nearEnd() { var m = $('#msgs'); return !m || m.scrollHeight - m.scrollT
 function paintHead() {
   var i = C.info; if (!i || !$('#chname')) return; var cv = (S.ov && S.ov.convs.filter(function (c) { return c.id === C.id; })[0]) || {};
   var peer = i.kind === 'dm' ? (i.members || []).filter(function (m) { return m.uid === i.peerUid; })[0] : null;
-  $('#chname').innerHTML = i.kind === 'dm' ? nameHtml(peer || cv) : esc(i.name);
-  $('#chav').setAttribute('style', peer && peer.avatar ? 'background-image:url(\'' + esc(peer.avatar) + '\')' : '');
-  $('#chsub').innerHTML = i.kind === 'dm' ? esc(peer && peer.playing ? 'Playing ' + peer.playing.name : peer && peer.online ? 'Online' : 'Offline') + (i.streak && i.streak.streak ? ' <span class="fl">' + ic('flame', 13) + i.streak.streak + '</span>' : '') : (i.members || []).length + ' members';
-  var t = (i.typing || []).map(function (x) { return x.name; });
+  var nmH = i.kind === 'dm' ? nameHtml(peer || cv) : esc(i.name); if ($('#chname').__h !== nmH) { $('#chname').__h = nmH; $('#chname').innerHTML = nmH; }
+  var hav = i.kind === 'group' ? i.avatar : peer && peer.avatar; $('#chav').setAttribute('style', hav ? 'background-image:url(\'' + esc(hav) + '\')' : '');
+  var subH = i.kind === 'dm' ? esc(peer && peer.playing ? 'Playing ' + peer.playing.name : peer && peer.online ? 'Online' : 'Offline') + (i.streak && i.streak.streak ? ' <span class="fl ' + (i.streak.doneToday ? 'lit' : i.streak.atRisk ? 'risk' : '') + '">' + ic('flame', 13) + i.streak.streak + '</span>' : '') : (i.members || []).length + ' members'; if ($('#chsub').__h !== subH) { $('#chsub').__h = subH; $('#chsub').innerHTML = subH; }
+  paintStrkBar(); var t = (i.typing || []).map(function (x) { return x.name; });
   var th = t.length ? '<i></i><i></i><i></i> ' + esc(t.join(', ')) + (t.length > 1 ? ' are typing' : ' is typing') : '';
   if ($('#typing').__h !== th) { $('#typing').innerHTML = th; $('#typing').__h = th; }
   var cin = $('#cin'); if (cin) { var off = i.canSend === false; cin.disabled = off; cin.placeholder = off ? 'You can only message friends' : 'Message'; }
 }
 function jumbo(t) { return /^(\p{Extended_Pictographic}|‍|️|\s){1,3}$/u.test(t) && t.trim().length > 0; }
 function paintMsgs(stick) {
-  var box = $('#msgs'); if (!box) return; var prev = null, h = '', wantUrls = [];
+  var box = $('#msgs'); if (!box) return; var prev = null, h = '', wantUrls = [], lastDay = '';
   C.msgs.forEach(function (m) {
     if (m.kind === 'system') { h += '<div class="m sys">' + esc(m.text) + '</div>'; prev = null; return; }
+    var dk = new Date(m.at).toDateString(); if (dk !== lastDay) { lastDay = dk; h += '<div class="m sys dsep">' + dayLabel(m.at) + '</div>'; prev = null; }
+    if (C.firstUnread && m.id === C.firstUnread) { h += '<div class="m sys newdiv" id="newdiv">' + C.unreadN + ' new message' + (C.unreadN === 1 ? '' : 's') + '</div>'; prev = null; }
     var gap = !prev || prev.uid !== m.uid || (m.at - prev.at) > 300000; prev = m;
     var cls = 'm' + (m.mine ? ' me' : '') + (gap ? ' gap' : '') + (C.newIds[m.id] && !C.seen[m.id] ? ' new' : '') + (m.kind === 'text' && jumbo(m.text) ? ' big' : '') + (m.kind === 'image' || m.kind === 'gif' ? ' media' : '');
     C.seen[m.id] = 1;
@@ -187,8 +194,8 @@ function paintMsgs(stick) {
     if (m.kind === 'game' && m.data) body += '<div class="gcard"><div data-gp="' + (m.data.appid | 0) + '">' + gi(m.data.appid, m.data.name) + '</div><div><b data-gp="' + (m.data.appid | 0) + '">' + esc(m.data.name) + '</b>' + (m.data.hours ? '<div class="sub">' + m.data.hours + ' h played</div>' : '') + '<button class="btn sm" style="margin-top:6px;width:100%" data-buy="' + (m.data.appid | 0) + '">Buy on Steam</button></div></div>';
     else if (m.kind === 'list' && m.data) body += '<div class="gcard"><div><b class="lt">' + ic('list', 15) + esc(m.data.title) + '</b><div class="sub">Shared game list</div><button class="btn sm" style="margin-top:6px;width:100%" data-list="' + esc(m.data.id) + '">Open list</button></div></div>';
     else if (m.kind === 'poll' && m.data) body += pollHtml(m);
-    else if (m.kind === 'image') body += '<img class="mimg" data-img="1" src="' + (m.dataUrl || (MEDIA + esc(m.data && m.data.id))) + '" alt="Photo">' + (m.text && plain(m.text) !== 'Photo' ? '<div class="cap">' + linkify(m.text) + '</div>' : '');
-    else if (m.kind === 'gif' && m.data) body += '<img class="mimg" data-img="1" src="' + esc(m.data.url) + '" alt="GIF">';
+    else if (m.kind === 'image') body += (m.dataUrl ? '' : '') + dsGate(m.dataUrl ? '' : MEDIA + (m.data && m.data.id), '<img class="mimg" data-img="1" src="' + (m.dataUrl || (MEDIA + esc(m.data && m.data.id))) + '" alt="Photo">', 'Photo') + (m.text && plain(m.text) !== 'Photo' ? '<div class="cap">' + linkify(m.text) + '</div>' : '');
+    else if (m.kind === 'gif' && m.data) body += dsGate(m.data.url, '<img class="mimg" data-img="1" src="' + esc(m.data.url) + '" alt="GIF">', 'GIF');
     else if (m.kind === 'voice') { var id = m.data && m.data.id; body += '<div class="vm" data-vid="' + esc(id) + '"><button data-vplay="' + esc(id) + '">' + (VID === id && VA && !VA.paused ? PAUSE : PLAY) + '</button><div class="vb"><i></i></div><span>' + fmtDur(m.data ? m.data.ms : 0) + '</span></div>'; }
     else {
       body += linkify(m.text); var u = firstUrl(m.text);
@@ -199,7 +206,8 @@ function paintMsgs(stick) {
   });
   if (C.info && C.info.kind === 'dm' && C.msgs.length) { var lastAny = C.msgs.filter(function (m) { return m.mine; }).pop(); if (lastAny) { var st = lastAny.tmp ? '' : C.info.peerRead >= lastAny.id ? 'Seen' : (C.info.peerLast || 0) >= lastAny.at ? 'Delivered' : 'Sent'; if (st) h += '<div class="sub seen' + (st === 'Seen' ? ' on' : '') + '">' + st + '</div>'; } }
   var changed = setHtml(box, h); if (changed && stick) box.scrollTop = box.scrollHeight;
-  C.newIds = {}; wantUrls.slice(-3).forEach(wantPreview);
+  if (C.scrollDiv) { var nd = $('#newdiv'); if (nd) box.scrollTop = Math.max(0, nd.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - 70); C.scrollDiv = false; }
+  C.newIds = {}; if (!dsOn()) wantUrls.slice(-3).forEach(wantPreview);
 }
 
 // ---------- swipe a message to reply ----------
@@ -272,7 +280,7 @@ function sendRaw(body, tmpExtra) {
     if (r.http === 0 && (!body.kind || body.kind === 'text')) { OUTQ.push({ conv: id, body: body, at: tmp.at }); saveQ(); tmp.queued = true; if (id === C.id) paintMsgs(false); toast('No connection. It will send when you are back online.'); return r; }
     if (id !== C.id) return r;
     C.msgs = C.msgs.filter(function (m) { return m !== tmp; });
-    if (r.error) { toast(r.error); paintMsgs(false); } else { hp('ok'); loadConv(false); }
+    if (r.error) { toast(r.error); paintMsgs(false); } else { hp('ok'); loadConv(false); if ((!body.kind || body.kind === 'text') && r.id) undoBar(r.id, id); }
     return r;
   });
 }
@@ -331,13 +339,14 @@ function endRec(cancel) {
 // ---------- message menu, chat menu, search ----------
 function msgMenu(id) {
   var m = C.msgs.filter(function (x) { return x.id === id; })[0]; if (!m || m.tmp) return;
-  sheet('<div class="emo">' + QUICK.map(function (e) { return '<button data-e="' + e + '">' + e + '</button>'; }).join('') + '</div>' + act('reply', 'Reply', 'data-a="reply"') + (m.kind !== 'poll' ? act('share', 'Forward', 'data-a="fwd"') : '') + (m.kind === 'text' ? act('copy', 'Copy text', 'data-a="copy"') : '') + act('pin', m.pinned ? 'Unpin' : 'Pin', 'data-a="pin"') + (m.mine && m.kind === 'text' ? act('edit', 'Edit', 'data-a="edit"') : '') + (m.mine ? act('trash', 'Delete', 'data-a="del"', 'bad') : act('flag', 'Report', 'data-a="rep"', 'bad')));
+  sheet('<div class="emo">' + QUICK.map(function (e) { return '<button data-e="' + e + '">' + e + '</button>'; }).join('') + '</div>' + act('reply', 'Reply', 'data-a="reply"') + (m.kind !== 'poll' ? act('share', 'Forward', 'data-a="fwd"') : '') + (m.kind === 'text' ? act('copy', 'Copy text', 'data-a="copy"') : '') + act('star', isStar(id) ? 'Remove star' : 'Star', 'data-a="star"') + act('pin', m.pinned ? 'Unpin' : 'Pin', 'data-a="pin"') + (m.mine && m.kind === 'text' ? act('edit', 'Edit', 'data-a="edit"') : '') + (m.mine ? act('trash', 'Delete', 'data-a="del"', 'bad') : act('flag', 'Report', 'data-a="rep"', 'bad')));
   $('#sheet').onclick = function (e) {
     var em = e.target.closest('[data-e]'), a = e.target.closest('[data-a]');
     if (em) { var mine = (m.reactions.filter(function (r) { return r.e === em.dataset.e && r.me; }).length > 0); closeSheet(); hp('tap'); api('POST', '/social/react', { msg: id, emoji: em.dataset.e, on: !mine }).then(function (r) { if (r.error) toast(r.error); refreshAll(); }); }
     else if (a) {
       closeSheet(); var k = a.dataset.a;
       if (k === 'reply') setReply(m); else if (k === 'fwd') forwardMsg(m);
+      else if (k === 'star') toggleStar(m);
       else if (k === 'copy') { N('copy', m.text); toast('Copied'); }
       else if (k === 'pin') api('POST', '/social/pin', { id: id, on: !m.pinned }).then(function (r) { if (r.error) toast(r.error); refreshAll(); });
       else if (k === 'edit') { var t = prompt('Edit message', m.text); if (t && t.trim()) api('POST', '/social/edit', { id: id, text: t.trim() }).then(function (r) { if (r.error) toast(r.error); refreshAll(); }); }
@@ -364,14 +373,16 @@ function groupSheet() {
   var i = C.info || {}, me = S.me && S.me.uid, mem = i.members || [], mine = !!i.owner;
   var h = '<h3 style="margin:0 0 2px">' + esc(i.name || 'Group') + '</h3><div class="sub" style="margin-bottom:8px">' + mem.length + ' of 20 people' + (mine ? ' · you are the owner' : '') + '</div>';
   h += mem.map(function (m) { return '<div class="row" style="cursor:default"><div class="av sm"' + avStyle(m.avatar) + '></div><div class="grow"><div class="name">' + nameHtml(m) + (m.role === 'owner' ? '<span class="chip gold" style="margin-left:6px">Owner</span>' : '') + '</div><div class="sub">' + (m.playing ? 'Playing ' + esc(m.playing.name) : m.online ? 'Online' : 'Offline') + '</div></div>' + (mine && m.uid !== me ? '<button class="btn sm ghost" data-rm="' + m.uid + '" aria-label="Remove ' + esc(m.name) + '">' + ic('x', 15) + '</button>' : '') + '</div>'; }).join('');
-  if (mine) h += act('plus', 'Add people', 'data-a="add"', 'acc') + act('edit', 'Rename group', 'data-a="ren"');
+  if (mine) h += act('plus', 'Add people', 'data-a="add"', 'acc') + act('edit', 'Rename group', 'data-a="ren"') + act('image', 'Change group picture', 'data-a="gpic"') + (i.avatar ? act('x', 'Remove group picture', 'data-a="gpicx"') : '');
   h += act('x', 'Leave group', 'data-a="leave"', 'bad');
   sheet(h);
   $('#sheet').onclick = function (e) {
     var rm = e.target.closest('[data-rm]'), a = e.target.closest('[data-a]');
     if (rm) { if (!confirm('Remove this person from the group?')) return; api('POST', '/social/group/remove', { conv: C.id, uid: rm.dataset.rm }).then(function (r) { if (r.error) return toast(r.error); toast('Removed'); refreshAll(); setTimeout(groupSheet, 700); }); return; }
     if (!a) return; var k = a.dataset.a;
-    if (k === 'ren') { var nm = prompt('New group name', i.name || ''); if (nm && nm.trim().length > 1) api('POST', '/social/group/rename', { conv: C.id, name: nm.trim() }).then(function (r) { if (r.error) return toast(r.error); closeSheet(); toast('Renamed'); refreshAll(); tick(); }); }
+    if (k === 'gpic') { closeSheet(); pickGroupPic(); }
+    else if (k === 'gpicx') api('POST', '/social/group/avatar', { conv: C.id, media: '' }).then(function (r) { if (r.error) return toast(r.error); closeSheet(); toast('Picture removed'); C.info.avatar = ''; paintHead(); tick(); });
+    else if (k === 'ren') { var nm = prompt('New group name', i.name || ''); if (nm && nm.trim().length > 1) api('POST', '/social/group/rename', { conv: C.id, name: nm.trim() }).then(function (r) { if (r.error) return toast(r.error); closeSheet(); toast('Renamed'); refreshAll(); tick(); }); }
     else if (k === 'leave') { if (confirm('Leave this group?' + (mine && mem.length > 1 ? ' Someone else becomes the owner.' : ''))) api('POST', '/social/group/remove', { conv: C.id, uid: me }).then(function (r) { if (r.error) return toast(r.error); closeSheet(); closeChat(true); toast('You left the group'); tick(); }); }
     else if (k === 'add') {
       var have = {}; mem.forEach(function (m) { have[m.uid] = 1; }); var fr = ((S.ov && S.ov.friends) || []).filter(function (f) { return !have[f.uid]; });
@@ -414,4 +425,60 @@ function pickConv(title, cb) {
   var cv = (S.ov && S.ov.convs) || []; if (!cv.length) return toast('No chats yet.');
   sheet('<h3 style="margin:0 0 8px">' + esc(title) + '</h3>' + cv.map(function (c) { return '<button class="act" data-c2="' + c.id + '"><span>' + esc(c.name) + '</span></button>'; }).join(''));
   $('#sheet').onclick = function (e) { var b = e.target.closest('[data-c2]'); if (b) { closeSheet(); cb(b.dataset.c2); } };
+}
+
+// ---------- friend streaks: status bar in the chat and the "day went up" celebration ----------
+function dayKey() { var d = new Date(); return d.getUTCFullYear() + '-' + d.getUTCMonth() + '-' + d.getUTCDate(); }
+function paintStrkBar() {
+  var el = $('#strkbar'), i = C && C.info; if (!el) return; var s = i && i.kind === 'dm' && i.streak, h = '';
+  var peer = i && (i.members || []).filter(function (m) { return m.uid === i.peerUid; })[0], nm = esc(peer ? NICKS()[peer.uid] || peer.name : 'them');
+  if (s && s.streak > 0 && s.atRisk && !s.doneToday) h = s.mineToday ? '<div class="sbar wait">' + ic('flame', 15) + '<span>You are done for today. Waiting for ' + nm + ' to keep the <b>' + s.streak + '</b>-day streak going.</span></div>' : '<div class="sbar risk">' + ic('flame', 15) + '<span>Send anything to keep your <b>' + s.streak + '</b>-day streak alive today.</span></div>';
+  else if (s && s.doneToday) h = '<div class="sbar ok">' + ic('flame', 15) + '<span><b>' + s.streak + '</b>-day streak. Done for today!</span></div>';
+  else if (s && !s.streak && (s.mineToday || s.theirsToday)) h = '<div class="sbar wait">' + ic('flame', 15) + '<span>' + (s.mineToday ? 'Waiting for ' + nm + ' to reply to start a streak.' : nm + ' messaged you. Reply to start a streak!') + '</span></div>';
+  if (el.__h !== h) { el.__h = h; el.innerHTML = h; }
+}
+function streakChange(old, nu, info) {
+  setTimeout(paintStrkBar, 0);
+  if (!old || !nu || !info || info.kind !== 'dm' || !nu.doneToday || old.doneToday) return;
+  var k = 'sc:' + C.id; if (ls.get(k) === dayKey()) return; ls.set(k, dayKey());
+  var peer = (info.members || []).filter(function (m) { return m.uid === info.peerUid; })[0];
+  celebrateStreak(old.streak || 0, nu.streak, peer ? NICKS()[peer.uid] || peer.name : '');
+}
+var MILE = { 3: 'Three days in a row', 7: 'A whole week', 14: 'Two weeks strong', 30: 'A full month', 50: 'Fifty days', 100: 'One hundred days', 200: 'Two hundred days', 365: 'A whole year' };
+function localDay(off) { var d = new Date(Date.now() + (off || 0) * 86400000); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+function playStreakSeen(p) {
+  S.pcs = { current: p.current, best: p.best, last: localDay(), phone: localDay() }; cset('pcs', S.pcs);
+  if (S.tab === 'home' && !S.pg) { try { renderHome(); } catch (e) { } }
+  if (!p.up) return; var k = 'pcsc'; if (ls.get(k) === localDay()) return; ls.set(k, localDay());
+  setTimeout(function () { celebrateStreak(p.from || 0, p.current, '', 'play'); }, 600);
+}
+function celebrateStreak(from, to, name, mode) {
+  var old = $('#strk'); if (old) old.remove(); hp('ok');
+  var sp = ''; for (var i = 0; i < 14; i++) { var a = i / 14 * 6.283 + (i % 2) * .2, d = 90 + (i % 3) * 26; sp += '<i style="--dx:' + Math.round(Math.cos(a) * d) + 'px;--dy:' + Math.round(Math.sin(a) * d) + 'px;--dl:' + (i % 4) * 40 + 'ms;--sz:' + (4 + i % 3 * 2) + 'px"></i>'; }
+  var el = document.createElement('div'); el.id = 'strk'; el.setAttribute('role', 'status');
+  el.innerHTML = '<div class="sk-card"><div class="sk-fire"><b class="sk-r1"></b><b class="sk-r2"></b><div class="sk-sparks">' + sp + '</div>' + ic('flame', 84, true) + '</div>' +
+    '<div class="sk-num"><span class="o">' + from + '</span><span class="n">' + to + '</span></div><div class="sk-t">' + (mode === 'play' ? 'day play streak' : 'day streak') + '</div><div class="sk-s">' + esc(mode === 'play' ? (MILE[to] ? MILE[to] + '! ' : '') + 'Your message counted as a play day' : MILE[to] ? MILE[to] + (name ? ' with ' + name : '') + '!' : name ? 'You and ' + name + ' kept it going' : 'Kept going') + '</div></div>';
+  document.body.appendChild(el); var close = function () { el.classList.add('out'); setTimeout(function () { el.remove(); }, 350); };
+  el.onclick = close; setTimeout(close, 3200); setTimeout(function () { hp('tap'); }, 520);
+}
+
+function dayLabel(t) { var d = new Date(t), n = new Date(), y = new Date(Date.now() - 86400000); if (d.toDateString() === n.toDateString()) return 'Today'; if (d.toDateString() === y.toDateString()) return 'Yesterday'; return d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: d.getFullYear() === n.getFullYear() ? undefined : 'numeric' }); }
+// group picture (owner): pick, shrink, upload, set
+function pickGroupPic() {
+  var pid = 'g' + hex(4); toast('Choose a picture...'); var id = C.id;
+  CB[pid] = function (json) {
+    var f = null; try { f = JSON.parse(json || 'null'); } catch (e) { } if (!f || !f.data) return toast('No picture chosen.');
+    var img = new Image(); img.onload = function () {
+      var s = Math.min(img.width, img.height), cv = document.createElement('canvas'); cv.width = cv.height = 256; cv.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 256, 256);
+      var d = cv.toDataURL('image/jpeg', 0.85).split(',')[1]; toast('Uploading...');
+      api('POST', '/media', { mime: 'image/jpeg', data: d }).then(function (u) { if (!u.ok) return toast(u.error || 'Could not upload'); return api('POST', '/social/group/avatar', { conv: id, media: u.id }).then(function (r) { if (r.error) return toast(r.error); hp('ok'); toast('Group picture updated'); if (id === C.id) { C.info.avatar = MEDIA + u.id; paintHead(); refreshAll(); } tick(); }); });
+    }; img.onerror = function () { toast('Could not read that picture'); }; img.src = 'data:' + (f.mime || 'image/jpeg') + ';base64,' + f.data;
+  };
+  N('pickImage', pid);
+}
+
+// keep the newest message in view while the keyboard opens/closes or the input grows/shrinks (no jumping when you send)
+function watchStick(box) {
+  var stuck = true, lastH = box.clientHeight; box.addEventListener('scroll', function () { stuck = box.scrollHeight - box.scrollTop - box.clientHeight < 80; }, { passive: true });
+  if (window.ResizeObserver) new ResizeObserver(function () { var h = box.clientHeight; if (h !== lastH) { lastH = h; if (stuck) box.scrollTop = box.scrollHeight; } }).observe(box);
 }

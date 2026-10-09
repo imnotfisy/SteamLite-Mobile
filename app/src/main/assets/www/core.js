@@ -47,12 +47,13 @@ window.__http = function (id, code, text) { var p = pend[id]; if (!p) return; de
 function raw(method, url, headers, body) { return new Promise(function (res) { var id = 'r' + (++seq); pend[id] = function (c, t) { res({ code: c, text: t }); }; SLNative.http(id, method, url, JSON.stringify(headers || {}), body || ''); }); }
 function setOffline(v) { if (S.offline === v) return; S.offline = v; $('#off').innerHTML = v ? '<div class="ob">You are offline. Showing saved data.</div>' : ''; }
 function api(method, path, body) {
+  if (path === '/social/send' && body && typeof body === 'object' && !body.day) { var dd = new Date(); body.day = dd.getFullYear() + '-' + ('0' + (dd.getMonth() + 1)).slice(-2) + '-' + ('0' + dd.getDate()).slice(-2); }
   var h = { 'Content-Type': 'application/json' }; if (S.tok) h.Authorization = 'Bearer ' + S.tok;
   return raw(method, BASE + path, h, body ? JSON.stringify(body) : '').then(function (r) {
     var j = {}; try { j = JSON.parse(r.text); } catch (e) { }
     if (r.code === 401 && S.tok) signedOut();
     if (r.code === 0) { j = { error: 'No connection. Check your internet.' }; setOffline(true); } else setOffline(false);
-    j.http = r.code; return j;
+    j.http = r.code; if (path === '/social/send' && j.play) { try { playStreakSeen(j.play); } catch (e) { } } return j;
   });
 }
 function toast(t) { var e = $('#toast'); e.textContent = t; e.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(function () { e.classList.remove('on'); }, 2600); }

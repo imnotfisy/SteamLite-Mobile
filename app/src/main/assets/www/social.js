@@ -9,12 +9,14 @@ function renderFriends() {
   if (o.incoming.length) h += '<div class="sec">Requests</div>' + o.incoming.map(function (f) { return '<div class="row" data-f="r' + f.uid + '"><div class="av"' + avStyle(f.avatar) + '></div><div class="grow name">' + nameHtml(f) + '</div><button class="btn sm" data-acc="' + f.uid + '">Accept</button><button class="btn sm ghost" data-dec="' + f.uid + '">' + ic('x', 15) + '</button></div>'; }).join('');
   h += '<div class="sec">Play together</div><button class="btn ghost wide" id="gnight">' + ic('dice', 18) + ' What should we play?</button>';
   h += '<div class="sec">Challenges</div><div id="chals">' + skel(1) + '</div><button class="btn ghost sm" id="newc" style="margin-top:6px">' + ic('trophy', 15) + ' Start a challenge</button>';
-  var on = o.friends.filter(function (f) { return f.online; }), off = o.friends.filter(function (f) { return !f.online; }), fv = FAVF(), favFirst = function (a, b) { return (fv.indexOf(b.uid) >= 0 ? 1 : 0) - (fv.indexOf(a.uid) >= 0 ? 1 : 0); }; on.sort(favFirst); off.sort(favFirst);
-  function row(f) { return '<div class="row" data-f="' + f.uid + '"><div class="av"' + avStyle(f.avatar) + '><i class="dot ' + (f.playing ? 'play' : f.online ? 'on' : '') + '"></i></div><div class="grow"><div class="name">' + (fv.indexOf(f.uid) >= 0 ? '<span class="mi gold">' + ic('star', 13, true) + '</span>' : '') + nameHtml(f) + (f.streak ? ' <span class="fl sub">' + ic('flame', 13) + f.streak + '</span>' : '') + '</div><div class="sub">' + (f.playing ? 'Playing ' + esc(f.playing.name) : f.online ? 'Online' : 'Offline') + '</div></div></div>'; }
+  var on = o.friends.filter(function (f) { return f.online; }), off = o.friends.filter(function (f) { return !f.online; }), fv = FAVF(), favFirst = function (a, b) { return (fv.indexOf(b.uid) >= 0 ? 1 : 0) - (fv.indexOf(a.uid) >= 0 ? 1 : 0); }; on.sort(favFirst); off.sort(favFirst); var gfl = S.fgFilter || ''; if (gfl) { on = on.filter(function (f) { return FG()[f.uid] === gfl; }); off = off.filter(function (f) { return FG()[f.uid] === gfl; }); }
+  function row(f) { return '<div class="row" data-f="' + f.uid + '"><div class="av"' + avStyle(f.avatar) + '><i class="dot ' + (f.playing ? 'play' : f.online ? 'on' : '') + '"></i></div><div class="grow"><div class="name">' + (fv.indexOf(f.uid) >= 0 ? '<span class="mi gold">' + ic('star', 13, true) + '</span>' : '') + nameHtml(f) + (f.streak ? ' <span class="fl sub ' + (f.doneToday ? 'lit' : f.atRisk && !f.mineToday ? 'risk' : '') + '">' + ic('flame', 13) + f.streak + '</span>' : '') + '</div><div class="sub">' + (f.playing ? 'Playing ' + esc(f.playing.name) : f.online ? 'Online' : 'Offline') + (f.status ? ' · ' + esc(f.status) : '') + '</div></div>' + (FG()[f.uid] ? '<span class="chip">' + esc(FG()[f.uid]) + '</span>' : '') + '</div>'; }
+  h += fgBar();
   h += '<div class="sec">Online · ' + on.length + '</div>' + (on.map(row).join('') || '<div class="sub">Nobody online right now.</div>') + '<div class="sec">Offline · ' + off.length + '</div>' + off.map(row).join('');
   if (o.outgoing.length) h += '<div class="sec">Sent requests</div>' + o.outgoing.map(function (f) { return '<div class="row"><div class="av sm"' + avStyle(f.avatar) + '></div><div class="grow name">' + nameHtml(f) + '</div><span class="sub">Pending</span></div>'; }).join('');
   var changed = setHtml(v, h + '</div>');
   v.onclick = function (e) {
+    var fg = e.target.closest('[data-fg]'); if (fg) { S.fgFilter = fg.dataset.fg; hp('tap'); renderFriends(); return; }
     var a = e.target.closest('[data-acc]'), d = e.target.closest('[data-dec]'), f = e.target.closest('[data-f]');
     if (a) respond(a.dataset.acc, true); else if (d) respond(d.dataset.dec, false); else if (f && !/^r/.test(f.dataset.f)) openProfile(f.dataset.f);
   };
@@ -173,7 +175,8 @@ function openGame(id, hint) {
     }
     if (d && (d.dev || d.pub || d.date)) h += '<div class="sec">Details</div><div class="card kv">' + (d.dev ? '<div><span>Developer</span><b>' + esc(d.dev.join(', ')) + '</b></div>' : '') + (d.pub ? '<div><span>Publisher</span><b>' + esc(d.pub.join(', ')) + '</b></div>' : '') + (d.date ? '<div><span>Release</span><b>' + esc(d.date) + '</b></div>' : '') + '</div>';
     if (!d) h += '<div class="empty">The store page is not available right now.</div>';
-    b.innerHTML = h;
+    b.innerHTML = h + gameExtra(id, ach, !!g);
+    bindGameExtra(id, ach, paint, d);
     var pb = $('#gppc'); if (pb) pb.onclick = function () { if (!pcOn) return toast(GP.pc === false ? 'Your PC is not connected to SteamLite.' : 'Still checking your PC...'); api('POST', '/pc/launch', { appid: id, name: name }).then(function (r) { if (r.error) return toast(r.error); hp('ok'); toast('Sent! It starts on your PC within about 30 seconds.'); }); };
     var fb = $('#gpfav'); if (fb) fb.onclick = function () { var f = FAVS(), i = f.indexOf(id); if (i >= 0) f.splice(i, 1); else f.push(id); ls.set('favs', JSON.stringify(f)); hp('tap'); paint(d, ach); };
     if ($('#gpname') && d && d.name) $('#gpname').textContent = d.name;

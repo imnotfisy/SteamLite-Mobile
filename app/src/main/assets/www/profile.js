@@ -50,6 +50,7 @@ function openProfilePage(uid) {
       var nick = !mine && NICKS()[p.uid];
       var h = '<div class="pf" style="' + (accent ? '--pa:' + accent + ';' : '') + '">' + bannerHtml(c.banner, accent, 150) +
         '<div class="pfhead"><div class="pfav">' + avFrame(p.avatar, c.frame, 96) + '</div><div class="pfname"><div class="name" style="font-size:1.35em;flex-wrap:wrap">' + nameHtml(p) + '</div>' + (nick ? '<div class="sub">' + esc(p.name) + '</div>' : '') + (title ? '<div class="pftitle">' + esc(title) + '</div>' : '') + '<div class="sub">' + (p.playing ? '<span class="ic-play">' + ic('gamepad', 13) + '</span> Playing ' + esc(p.playing.name) : p.online ? 'Online' : (p.lastSeen ? 'Last seen ' + ago(p.lastSeen) + ' ago' : 'Offline')) + '</div></div></div>';
+      if (c.status) h += '<div class="pfstatus">' + esc(c.status) + '</div>';
       if (c.tagline) h += '<div class="pftag">' + esc(c.tagline) + '</div>';
       if (p.bio) h += '<p class="pfbio">' + esc(p.bio) + '</p>';
       if (!c.hideBadges) { var ch = ''; if (p.owner) ch += '<span class="chip gold">Owner of SteamLite</span>'; if (p.creator) ch += '<span class="chip">Theme creator</span>'; if (p.prestige) ch += '<span class="chip gold">Prestige ' + p.prestige + '</span>'; if (ch) h += '<div class="chips" style="margin:8px 0">' + ch + '</div>'; }

@@ -45,7 +45,7 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     static volatile boolean foreground = false;
-    private static final int REQ_PICK = 11, REQ_LOCK = 12, PERM_NOTIF = 21, PERM_MIC = 22;
+    private static final int REQ_PICK = 11, REQ_LOCK = 12, REQ_CHAT = 13, PERM_NOTIF = 21, PERM_MIC = 22;
 
     private WebView web;
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -64,6 +64,9 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         sp = getSharedPreferences("sl", MODE_PRIVATE);
+        if (Build.VERSION.SDK_INT >= 33) { // Android 13+ gesture back no longer calls onBackPressed: register for it
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, () -> handleBack());
+        }
         final Thread.UncaughtExceptionHandler old = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
             try { sp.edit().putString("crash", String.valueOf(e) + " @ " + (e.getStackTrace().length > 0 ? e.getStackTrace()[0] : "")).commit(); } catch (Exception x) { }
@@ -187,7 +190,11 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    public void onBackPressed() {
+    public void onBackPressed() { handleBack(); }
+
+    /** Back button or gesture: the page closes whatever is on top (viewer, sheet, page, chat, tab); at the very top the app closes. */
+    private void handleBack() {
+        if (web == null) { finish(); return; }
         web.evaluateJavascript("(window.onBack?onBack():false)", v -> { if (!"true".equals(v)) finish(); });
     }
 
@@ -201,6 +208,7 @@ public class MainActivity extends Activity {
             if (res == RESULT_OK) { leftAt = 0; js("window.lockUi&&lockUi(false)"); }   // if cancelled, the lock screen stays and its button asks again
             return;
         }
+        if (req == REQ_CHAT) { js("window.chatAuth&&chatAuth(" + (res == RESULT_OK) + ")"); return; }
         if (req == REQ_PICK) {
             final String id = pickId; pickId = "";
             if (res != RESULT_OK || data == null || data.getData() == null) { js("window.__cb(" + JSONObject.quote(id) + ",null)"); return; }
@@ -459,6 +467,29 @@ public void askNotif() {
                 } catch (Exception e) { }
             });
         }
+
+        /** Ask for the fingerprint/PIN to open a locked chat. The answer comes back to window.chatAuth(true/false). */
+        @JavascriptInterface
+        public void authChat() {
+            ui.post(() -> {
+                KeyguardManager km = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
+                Intent i = km == null || !km.isDeviceSecure() ? null : km.createConfirmDeviceCredentialIntent("SteamLite", "Unlock this chat");
+                if (i == null) { js("window.chatAuth&&chatAuth(true)"); return; }
+                startActivityForResult(i, REQ_CHAT);
+            });
+        }
+
+        @JavascriptInterface
+        public boolean metered() { try { android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE); return cm != null && cm.isActiveNetworkMetered(); } catch (Exception e) { return false; } }
+
+        @JavascriptInterface
+        public boolean batteryFree() { try { android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE); return pm != null && pm.isIgnoringBatteryOptimizations(getPackageName()); } catch (Exception e) { return true; } }
+
+        @JavascriptInterface
+        public void openBatterySettings() { try { startActivity(new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Exception e) { } }
+
+        @JavascriptInterface
+        public String dndOn() { return String.valueOf(sp.getBoolean("dndOn", false)); }
 
         @JavascriptInterface
         public boolean canLock() { KeyguardManager km = (KeyguardManager) getSystemService(KEYGUARD_SERVICE); return km != null && km.isDeviceSecure(); }

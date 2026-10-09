@@ -103,6 +103,7 @@ function activeEvent() {
 function homeLoad(force) {
   if (HOME.loading) return; if (!force && S.feedAt && Date.now() - S.feedAt < 120000) return; HOME.loading = true; S.feedAt = Date.now();
   var ps = [api('GET', '/social/feed').then(function (r) { if (r.items) { S.feed = r.items; cset('feed', r.items); } }), ensureGames().catch(function () { })];
+  ps.push(api('GET', '/me/streak').then(function (r) { if (r.ok) { S.pcs = { current: r.current, best: r.best, last: r.lastPlayDay, phone: (r.phoneDays || []).slice(-1)[0] || '' }; cset('pcs', S.pcs); } }));
   if (ls.get('saleAlerts') === '1') ps.push(api('GET', '/me/deals').then(function (r) { if (r.deals) { S.deals = r.deals; cset('deals', r.deals); } }));
   Promise.all(ps).then(function () { HOME.loading = false; if (S.tab === 'home') renderHome(); }, function () { HOME.loading = false; });
 }
@@ -118,6 +119,8 @@ function renderHome() {
   // quick numbers
   var online = ov ? ov.friends.filter(function (f) { return f.online; }).length : 0, req = ov ? ov.incoming.length : 0, unread = ov ? ov.unread : 0, dn = deals ? deals.length : 0;
   h += '<div class="chips2">' + [['msgs', 'msg', unread, 'unread'], ['friends', 'users', online, 'online'], ['friends', 'user', req, 'requests'], ['deals', 'zap', dn, 'on sale']].map(function (x) { return '<button class="chip2" data-go="' + x[0] + '"><span class="ci">' + ic(x[1], 17) + '</span><b>' + x[2] + '</b><span>' + x[3] + '</span></button>'; }).join('') + '</div>';
+  var pc = S.pcs || cget('pcs'); if (pc && (pc.current || pc.best)) { var lastD = pc.last > (pc.phone || '') ? pc.last : (pc.phone || pc.last), doneT = lastD === localDay(), liveN = (doneT || lastD === localDay(-1)) ? pc.current : 0; h += '<div class="card pcs ' + (doneT ? 'ok' : liveN ? 'risk' : '') + '"><span class="pcf">' + ic('flame', 26, true) + '</span><div class="grow"><div class="name">' + liveN + '-day play streak</div><div class="sub wrap">' + (doneT ? 'Done for today. Best: ' + pc.best + '.' : liveN ? 'Message anyone today to keep it going, even away from your PC.' : 'Your streak ended. Message anyone or play a game to start a new one.') + '</div></div></div>'; }
+  h += homeExtras();
   var ev = activeEvent();
   if (ev) h += '<button class="card evcard" data-act="events"><div class="name">' + ic('calendar', 17) + esc(ev.n) + '<span class="chip gold">Now on</span></div><div class="sub wrap" style="margin-top:4px">' + esc(ev.b.slice(0, 140)) + '</div></button>';
   if (newsUnseen()) h += '<button class="card newscard" data-act="news"><div class="name">' + ic('bell', 17) + 'There is news for you</div><div class="sub">Announcements and polls from SteamLite</div></button>';
@@ -138,7 +141,7 @@ function renderHome() {
   var rc = recapNumbers();
   if (games) h += '<button class="card recapcard" data-act="recap"><div class="sub">Your last two weeks</div><div class="big">' + rc.hours + ' <span>hours</span></div><div class="sub">' + (rc.top[0] ? 'Mostly ' + esc(rc.top[0].name) : 'Nothing played yet') + ' · tap for your recap</div></button>';
   // quick actions
-  h += '<div class="sec">Explore</div><div class="qgrid">' + [['themes', 'sliders', 'Themes'], ['compare', 'users', 'Compare'], ['ach', 'award', 'Achievements'], ['trophy', 'trophy', 'Trophy room'], ['events', 'calendar', 'Events'], ['lb', 'chart', 'Leaderboard'], ['feed', 'activity', 'Activity'], ['recap', 'sparkle', 'Recap']].map(function (q) { return '<button class="qa" data-act="' + q[0] + '"><span class="qi">' + ic(q[1], 22) + '</span><span>' + q[2] + '</span></button>'; }).join('') + '</div>';
+  h += '<div class="sec">Explore</div><div class="qgrid">' + [['themes', 'sliders', 'Themes'], ['compare', 'users', 'Compare'], ['ach', 'award', 'Achievements'], ['trophy', 'trophy', 'Trophy room'], ['events', 'calendar', 'Events'], ['lb', 'chart', 'Leaderboard'], ['feed', 'activity', 'Activity'], ['recap', 'sparkle', 'Recap'], ['backlog', 'dice', 'What to play'], ['starred', 'star', 'Starred'], ['diag', 'info', 'Diagnostics']].map(function (q) { return '<button class="qa" data-act="' + q[0] + '"><span class="qi">' + ic(q[1], 22) + '</span><span>' + q[2] + '</span></button>'; }).join('') + '</div>';
   setHtml(v, h + '</div>');
   v.onclick = function (e) {
     var g = e.target.closest('[data-go]'), a = e.target.closest('[data-act]'), pf = e.target.closest('[data-pf]'), gp = e.target.closest('[data-gp]');
