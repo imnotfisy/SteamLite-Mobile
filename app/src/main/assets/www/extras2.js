@@ -273,3 +273,15 @@ if (!ls.get('lang')) { try { var nl = (navigator.language || 'en').slice(0, 2).t
 // the Quick Settings tile can change quiet hours while the app is closed: take over its value when the app opens again
 var _onResume = window.onResumeApp;
 window.onResumeApp = function () { try { var on = N('dndOn') === 'true', d = dndState(); if (d.on !== on) { d.on = on; ls.set('dnd', JSON.stringify(d)); } } catch (e) { } if (_onResume) _onResume(); };
+
+// ---------- the play streak, kept in step with the PC ----------
+function refreshPcs() {
+  return api('GET', '/me/streak').then(function (r) {
+    if (!r || !r.ok) return; var old = S.pcs || cget('pcs') || {};
+    S.pcs = { current: r.current, best: r.best, last: r.lastPlayDay, phone: (r.phoneDays || []).slice(-1)[0] || '', restores: r.restores || 0, recU: r.recoveryUntil || '', recP: r.previous || 0, at: r.at || 0 };
+    cset('pcs', S.pcs); if (S.tab === 'home' && !PGS.length && JSON.stringify(old) !== JSON.stringify(S.pcs)) { try { renderHome(); } catch (e) { } }
+  });
+}
+var _onResume2 = window.onResumeApp;
+window.onResumeApp = function () { if (S.tok) refreshPcs(); if (_onResume2) _onResume2(); };
+setInterval(function () { if (S.tok && !document.hidden && S.tab === 'home') refreshPcs(); }, 60000);
