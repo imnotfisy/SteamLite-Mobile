@@ -23,8 +23,8 @@ android {
         applicationId = "com.steamlite.mobile"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "1.4.0"
+        versionCode = 13
+        versionName = "1.4.1"
     }
 
     signingConfigs {
@@ -59,6 +59,7 @@ dependencies {
     implementation("com.google.zxing:core:3.5.3")   // draws your friend-code QR
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")   // scans a friend's QR (no camera permission needed)
 }
+
 
 
 
