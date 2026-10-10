@@ -1,7 +1,7 @@
 {
-    "version":  "1.4.0",
-    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.4.0/SteamLite-Mobile-1.4.0.apk",
-    "sha256":  "c192e9844d56809848190e1a6af696cf46856f250ca9e4eb8c9c9b78a7f53e60",
-    "size":  3466690,
-    "notes":  "Steam store price alerts, tag and sort filters, friends who own a game and similar games; smart folders, shared folders with friends, bulk select and hidden games; hours-per-day chart and all-time recap; a My PC card (status, lock, sleep, close game); friend QR code and scanner; chat export; streak widget; game colours; phone settings backup. Needs SteamLite 9.4.0 on the PC for lock, sleep and close."
+    "version":  "1.4.1",
+    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.4.1/SteamLite-Mobile-1.4.1.apk",
+    "sha256":  "74c573bd792a4e640f75cfccb6a711b3ffd35b19db120e726afa60b5beec7922",
+    "size":  3469189,
+    "notes":  "The Library button now opens a small quick menu with Library and Steam Store, the app refreshes your profile when you open it so changes made on the PC show up, and profile changes now sync both ways with SteamLite 9.4.1 on the PC."
 }
