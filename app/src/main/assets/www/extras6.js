@@ -43,3 +43,11 @@ var _go6 = go; go = function (t) { _go6(t); updLibTab(); };
 // changes made on the PC (banner, frame, title...) show up here when you come back to the app
 var _onResume6 = window.onResumeApp;
 window.onResumeApp = function () { if (S.tok && typeof loadMyProfile === 'function') loadMyProfile(true); if (_onResume6) _onResume6(); };
+
+// messaging lives in its own app now: this tab points people to it
+var MSG_APP_URL = 'https://github.com/imnotfisy/SteamLite-Messages/releases/latest';
+renderMsgs = function () {
+  var v = $('#view');
+  v.innerHTML = '<div class="hdr"><h1>Messages</h1></div><div class="pad"><div class="card" style="text-align:center;padding:30px 20px"><div style="width:84px;height:84px;margin:0 auto 18px;border-radius:26px;background:linear-gradient(135deg,#6d5bff,#1fb6ff);display:grid;place-items:center;color:#fff;box-shadow:0 12px 30px rgba(109,91,255,.35)">' + '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-5.4A8 8 0 1 1 21 12z"/></svg>' + '</div><div class="name" style="font-size:1.25em;margin-bottom:8px">Messages have moved</div><div class="sub wrap" style="margin-bottom:22px">Chats, calls, voice messages and streaks now live in their own app, SteamLite Messages. Your friends and conversations are already there. Just sign in with the same account.</div><button class="btn" id="getmsg" style="width:100%;justify-content:center">' + ic('download', 17) + ' Download SteamLite Messages</button></div></div>';
+  $('#getmsg').onclick = function () { hp('tap'); N('openUrl', MSG_APP_URL); };
+};
