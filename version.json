@@ -1,7 +1,7 @@
 {
-    "version":  "1.4.1",
-    "downloadUrl":  "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.4.1/SteamLite-Mobile-1.4.1.apk",
-    "sha256":  "74c573bd792a4e640f75cfccb6a711b3ffd35b19db120e726afa60b5beec7922",
-    "size":  3469189,
-    "notes":  "The Library button now opens a small quick menu with Library and Steam Store, the app refreshes your profile when you open it so changes made on the PC show up, and profile changes now sync both ways with SteamLite 9.4.1 on the PC."
+  "version": "1.4.1",
+  "downloadUrl": "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.4.1/SteamLite-Mobile-1.4.1.apk",
+  "sha256": "422d8e04f7291d887523f844b01ec23c968e4c506e8e32add230c6fbf34eecda",
+  "size": 3469821,
+  "notes": "The Library button now opens a small quick menu with Library and Steam Store, the app refreshes your profile when you open it so changes made on the PC show up, and profile changes now sync both ways with SteamLite 9.4.1 on the PC. The Messages tab now points to the new SteamLite Messages app."
 }
