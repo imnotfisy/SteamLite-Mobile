@@ -1,7 +1,7 @@
 {
-  "version": "1.4.2",
-  "downloadUrl": "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.4.2/SteamLite-Mobile-1.4.2.apk",
-  "sha256": "1293742e2b32764d5bb490db8199a9d90091b5e34fc4137fba0ff806445957b8",
-  "size": 3469821,
-  "notes": "The Messages tab now points to the new SteamLite Messages app, where chats, calls, voice messages and streaks live. Also includes the Library quick menu (Library and Steam Store) and two-way profile sync with SteamLite 9.4.1 on the PC."
+  "version": "1.4.3",
+  "downloadUrl": "https://github.com/imnotfisy/SteamLite-Mobile/releases/download/v1.4.3/SteamLite-Mobile-1.4.3.apk",
+  "sha256": "0db810991df7f2da67819ade0e77a2c447d11c5831b7cb7a9cbe031472f498d5",
+  "size": 3470681,
+  "notes": "Shows a \"Servers are undergoing maintenance\" notice while the SteamLite Online server is switched off for maintenance. IMPORTANT: this build is signed with a new key, so Android cannot install it over the old app. If the update fails, uninstall SteamLite Mobile first and install this version again."
 }
