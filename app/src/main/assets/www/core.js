@@ -46,11 +46,22 @@ var pend = {}, seq = 0;
 window.__http = function (id, code, text) { var p = pend[id]; if (!p) return; delete pend[id]; p(code, text); };
 function raw(method, url, headers, body) { return new Promise(function (res) { var id = 'r' + (++seq); pend[id] = function (c, t) { res({ code: c, text: t }); }; SLNative.http(id, method, url, JSON.stringify(headers || {}), body || ''); }); }
 function setOffline(v) { if (S.offline === v) return; S.offline = v; $('#off').innerHTML = v ? '<div class="ob">You are offline. Showing saved data.</div>' : ''; }
+// ---------- maintenance watermark: shown while the server's admin has switched SteamLite Online off (it then answers 503 with offline:true) ----------
+var MAINT = false;
+function maint(on) {
+  on = !!on; if (on === MAINT) return; MAINT = on;
+  var e = document.getElementById('maint');
+  if (on) { if (!e) { e = document.createElement('div'); e.id = 'maint'; e.setAttribute('role', 'status'); e.innerHTML = '<i></i><span>Servers are undergoing maintenance</span>'; document.body.appendChild(e); } requestAnimationFrame(function () { e.classList.add('on'); }); }
+  else if (e) { e.classList.remove('on'); setTimeout(function () { if (!MAINT && e.parentNode) e.parentNode.removeChild(e); }, 400); }
+}
+function checkMaint() { try { Promise.resolve(raw('GET', BASE + '/health?t=' + Date.now(), {}, '')).then(function (r) { if (r && r.code === 503) { var j = {}; try { j = JSON.parse(r.text); } catch (e) { } maint(j.offline === true); } else if (r && r.code > 0) maint(false); }).catch(function () { }); } catch (e) { } }
+setTimeout(checkMaint, 2500); setInterval(checkMaint, 60000);
 function api(method, path, body) {
   if (path === '/social/send' && body && typeof body === 'object' && !body.day) { var dd = new Date(); body.day = dd.getFullYear() + '-' + ('0' + (dd.getMonth() + 1)).slice(-2) + '-' + ('0' + dd.getDate()).slice(-2); }
   var h = { 'Content-Type': 'application/json' }; if (S.tok) h.Authorization = 'Bearer ' + S.tok;
   return raw(method, BASE + path, h, body ? JSON.stringify(body) : '').then(function (r) {
     var j = {}; try { j = JSON.parse(r.text); } catch (e) { }
+    maint(r.code === 503 && j.offline === true);
     if (r.code === 401 && S.tok) signedOut();
     if (r.code === 0) { j = { error: 'No connection. Check your internet.' }; setOffline(true); } else setOffline(false);
     j.http = r.code; if (path === '/social/send' && j.play) { try { playStreakSeen(j.play); } catch (e) { } } return j;

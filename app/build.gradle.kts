@@ -23,8 +23,8 @@ android {
         applicationId = "com.steamlite.mobile"
         minSdk = 26
         targetSdk = 36
-        versionCode = 14
-        versionName = "1.4.2"
+        versionCode = 15
+        versionName = "1.4.3"
     }
 
     signingConfigs {
